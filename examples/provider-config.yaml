@@ -1,0 +1,68 @@
+apiVersion: docker.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  # Unix socket connection (default for local Docker)
+  host: unix:///var/run/docker.sock
+  
+  # Optional timeout for Docker API operations
+  timeout: 30s
+  
+  # Credentials from a Kubernetes secret
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: docker-creds
+      key: config
+---
+apiVersion: docker.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: remote-docker
+spec:
+  # TCP connection with TLS (for remote Docker daemon)
+  host: tcp://docker.example.com:2376
+  
+  # TLS configuration
+  tlsConfig:
+    verify: true
+  
+  # Timeout for operations
+  timeout: 60s
+  
+  # Credentials from a Kubernetes secret (contains TLS certs)
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: docker-remote-creds
+      key: config
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: docker-creds
+  namespace: crossplane-system
+type: Opaque
+stringData:
+  config: |
+    {
+      "auths": {
+        "ghcr.io": {
+          "username": "myuser",
+          "password": "mytoken"
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: docker-remote-creds
+  namespace: crossplane-system
+type: Opaque
+data:
+  config: |
+    ewogICJjYSI6ICItLS0tLUJFR0lOIENFUlRJRklDQVRFLS0tLS0iLAogICJjZXJ0IjogIi0tLS0tQkVHSU4gQ0VSVElGSUNBVEUtLS0tLSIsCiAgImtleSI6ICItLS0tLUJFR0lOIFBSSVZBVEUgS0VZLS0tLS0iCn0K

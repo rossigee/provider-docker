@@ -1,0 +1,72 @@
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: provider-docker
+  annotations:
+    meta.crossplane.io/maintainer: Ross Golder <ross@golder.org>
+    meta.crossplane.io/source: github.com/rossigee/provider-docker
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      A native Go-based Crossplane provider for managing Docker resources.
+      
+      This provider offers efficient, direct integration with Docker APIs,
+      eliminating the complexity of Terraform-based compositions while 
+      providing superior performance, reliability, and debugging capabilities.
+
+      Features:
+      - Container lifecycle management
+      - Docker volume management  
+      - Docker network management
+      - TLS-secured Docker daemon connections
+      - Kubernetes Secret-based credential management
+      - Comprehensive resource status reporting
+      
+    meta.crossplane.io/readme: |
+      # Crossplane Docker Provider
+
+      This provider enables declarative management of Docker resources through Kubernetes.
+      
+      ## Installation
+      
+      Install the provider using the Crossplane CLI or kubectl:
+      
+      ```bash
+      kubectl apply -f - <<EOF
+      apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      metadata:
+        name: provider-docker
+      spec:
+        package: ghcr.io/rossigee/provider-docker:v0.1.0
+      EOF
+      ```
+      
+      ## Configuration
+      
+      Create a ProviderConfig to configure connection to your Docker daemon:
+      
+      ```bash
+      kubectl apply -f - <<EOF
+      apiVersion: docker.crossplane.io/v1beta1
+      kind: ProviderConfig
+      metadata:
+        name: default
+      spec:
+        host: unix:///var/run/docker.sock
+        credentials:
+          source: Secret
+          secretRef:
+            namespace: crossplane-system
+            name: docker-creds
+            key: config
+      EOF
+      ```
+      
+      For more examples and documentation, see the examples/ directory.
+
+spec:
+  crossplane:
+    version: ">=v1.19.0-0"
+  dependsOn:
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
+      version: ">=v0.14.0"
