@@ -18,14 +18,20 @@ package container
 
 import (
 	"context"
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/go-connections/nat"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -38,6 +44,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
+	"github.com/rossigee/provider-docker/apis/v1beta1"
 	"github.com/rossigee/provider-docker/internal/clients"
 )
 
@@ -49,11 +56,27 @@ const (
 	errCreateFailed = "cannot create container"
 	errDeleteFailed = "cannot delete container"
 	errUpdateFailed = "cannot update container"
+
+	// AnnotationKeyExternalName is the annotation key for external names
+	AnnotationKeyExternalName = "crossplane.io/external-name"
 )
+
+// ContainerConfigBuilder builds Docker container configuration from Crossplane resources.
+type ContainerConfigBuilder interface {
+	BuildContainerConfig(cr *v1alpha1.Container) (*container.Config, *container.HostConfig, *network.NetworkingConfig, *specs.Platform, error)
+}
+
+// defaultContainerConfigBuilder implements ContainerConfigBuilder.
+type defaultContainerConfigBuilder struct{}
+
+// NewContainerConfigBuilder creates a new ContainerConfigBuilder.
+func NewContainerConfigBuilder() ContainerConfigBuilder {
+	return &defaultContainerConfigBuilder{}
+}
 
 // Setup adds a controller that reconciles Container managed resources.
 func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
-	name := managed.ControllerName(v1alpha1.ContainerGroupKind)
+	name := managed.ControllerName(v1alpha1.ContainerGroupKind.Kind)
 
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 
@@ -61,7 +84,7 @@ func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 		resource.ManagedKind(v1alpha1.ContainerGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
 			kube:   mgr.GetClient(),
-			usage:  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1alpha1.ProviderConfigUsage{}),
+			usage:  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
 			logger: o.Logger,
 		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
@@ -89,8 +112,7 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.Container)
-	if !ok {
+	if _, ok := mg.(*v1alpha1.Container); !ok {
 		return nil, errors.New(errNotContainer)
 	}
 
@@ -104,16 +126,23 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	}
 
 	return &external{
-		client: dockerClient,
-		logger: c.logger,
+		client:        dockerClient,
+		configBuilder: NewContainerConfigBuilder(),
+		logger:        c.logger,
 	}, nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
 type external struct {
-	client clients.DockerClient
-	logger logging.Logger
+	client        clients.DockerClient
+	configBuilder ContainerConfigBuilder
+	logger        logging.Logger
+}
+
+// Disconnect closes any connection to the external resource.
+func (c *external) Disconnect(ctx context.Context) error {
+	return c.client.Close()
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
@@ -123,7 +152,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 
 	// Get the container ID from external name or status
-	containerID := cr.GetAnnotations()[xpv1.AnnotationKeyExternalName]
+	containerID := cr.GetAnnotations()[AnnotationKeyExternalName]
 	if containerID == "" {
 		return managed.ExternalObservation{ResourceExists: false}, nil
 	}
@@ -159,7 +188,10 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	c.logger.Debug("Creating container", "container", cr.Name)
 
 	// Convert Container spec to Docker API types
-	containerConfig, hostConfig, networkingConfig, platform := c.buildContainerConfig(cr)
+	containerConfig, hostConfig, networkingConfig, platform, err := c.configBuilder.BuildContainerConfig(cr)
+	if err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, "cannot build container configuration")
+	}
 
 	// Create the container
 	containerName := ""
@@ -173,14 +205,20 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	// Start the container if requested
 	if cr.Spec.ForProvider.StartOnCreate == nil || *cr.Spec.ForProvider.StartOnCreate {
-		if err := c.client.ContainerStart(ctx, response.ID, types.ContainerStartOptions{}); err != nil {
+		if err := c.client.ContainerStart(ctx, response.ID, container.StartOptions{}); err != nil {
 			return managed.ExternalCreation{}, errors.Wrap(err, "cannot start container")
 		}
 	}
 
-	return managed.ExternalCreation{
-		ExternalNameAssigned: true,
-	}, nil
+	// Set the external name annotation
+	annotations := cr.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	annotations[AnnotationKeyExternalName] = response.ID
+	cr.SetAnnotations(annotations)
+
+	return managed.ExternalCreation{}, nil
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
@@ -189,7 +227,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		return managed.ExternalUpdate{}, errors.New(errNotContainer)
 	}
 
-	containerID := cr.GetAnnotations()[xpv1.AnnotationKeyExternalName]
+	containerID := cr.GetAnnotations()[AnnotationKeyExternalName]
 	if containerID == "" {
 		return managed.ExternalUpdate{}, errors.New("external name not set")
 	}
@@ -203,47 +241,46 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	return managed.ExternalUpdate{}, nil
 }
 
-func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
+func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
 	cr, ok := mg.(*v1alpha1.Container)
 	if !ok {
-		return errors.New(errNotContainer)
+		return managed.ExternalDelete{}, errors.New(errNotContainer)
 	}
 
-	containerID := cr.GetAnnotations()[xpv1.AnnotationKeyExternalName]
+	containerID := cr.GetAnnotations()[AnnotationKeyExternalName]
 	if containerID == "" {
-		return nil // Nothing to delete
+		return managed.ExternalDelete{}, nil // Nothing to delete
 	}
 
 	c.logger.Debug("Deleting container", "container", cr.Name, "id", containerID)
 
 	// Stop the container first
-	timeout := 10 * time.Second
-	if err := c.client.ContainerStop(ctx, containerID, types.ContainerStopOptions{Timeout: &timeout}); err != nil {
+	timeout := 10
+	if err := c.client.ContainerStop(ctx, containerID, container.StopOptions{Timeout: &timeout}); err != nil {
 		if !isNotFound(err) {
-			return errors.Wrap(err, "cannot stop container")
+			return managed.ExternalDelete{}, errors.Wrap(err, "cannot stop container")
 		}
 	}
 
 	// Remove the container
-	if err := c.client.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{Force: true}); err != nil {
+	if err := c.client.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true}); err != nil {
 		if !isNotFound(err) {
-			return errors.Wrap(err, errDeleteFailed)
+			return managed.ExternalDelete{}, errors.Wrap(err, errDeleteFailed)
 		}
 	}
 
-	return nil
+	return managed.ExternalDelete{}, nil
 }
 
 // Helper functions
 
-func (c *external) buildContainerConfig(cr *v1alpha1.Container) (*container.Config, *container.HostConfig, *network.NetworkingConfig, *image.Platform) {
-	// TODO: Implement full container configuration mapping
-	// This is a minimal implementation for the MVP
-
+// BuildContainerConfig implements ContainerConfigBuilder interface.
+func (b *defaultContainerConfigBuilder) BuildContainerConfig(cr *v1alpha1.Container) (*container.Config, *container.HostConfig, *network.NetworkingConfig, *specs.Platform, error) {
 	config := &container.Config{
 		Image: cr.Spec.ForProvider.Image,
 	}
 
+	// Command and args
 	if len(cr.Spec.ForProvider.Command) > 0 {
 		config.Cmd = cr.Spec.ForProvider.Command
 	}
@@ -258,12 +295,9 @@ func (c *external) buildContainerConfig(cr *v1alpha1.Container) (*container.Conf
 
 	// Environment variables
 	if len(cr.Spec.ForProvider.Environment) > 0 {
-		env := make([]string, 0, len(cr.Spec.ForProvider.Environment))
-		for _, envVar := range cr.Spec.ForProvider.Environment {
-			if envVar.Value != nil {
-				env = append(env, envVar.Name+"="+*envVar.Value)
-			}
-			// TODO: Handle valueFrom
+		env, err := b.buildEnvironmentConfiguration(cr.Spec.ForProvider.Environment)
+		if err != nil {
+			return nil, nil, nil, nil, errors.Wrap(err, "cannot build environment configuration")
 		}
 		config.Env = env
 	}
@@ -273,7 +307,31 @@ func (c *external) buildContainerConfig(cr *v1alpha1.Container) (*container.Conf
 		config.Labels = cr.Spec.ForProvider.Labels
 	}
 
-	hostConfig := &container.HostConfig{}
+	// Working directory
+	if cr.Spec.ForProvider.WorkingDir != nil {
+		config.WorkingDir = *cr.Spec.ForProvider.WorkingDir
+	}
+
+	// User
+	if cr.Spec.ForProvider.User != nil {
+		config.User = *cr.Spec.ForProvider.User
+	}
+
+	// Hostname
+	if cr.Spec.ForProvider.Hostname != nil {
+		config.Hostname = *cr.Spec.ForProvider.Hostname
+	}
+
+	// Exposed ports
+	exposedPorts, portBindings, err := b.buildPortConfiguration(cr.Spec.ForProvider.Ports)
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "cannot build port configuration")
+	}
+	config.ExposedPorts = exposedPorts
+
+	hostConfig := &container.HostConfig{
+		PortBindings: portBindings,
+	}
 
 	// Restart policy
 	if cr.Spec.ForProvider.RestartPolicy != nil {
@@ -285,22 +343,407 @@ func (c *external) buildContainerConfig(cr *v1alpha1.Container) (*container.Conf
 		}
 	}
 
-	// TODO: Add port mappings, volume mounts, networks, etc.
+	// Network mode
+	if cr.Spec.ForProvider.NetworkMode != nil {
+		hostConfig.NetworkMode = container.NetworkMode(*cr.Spec.ForProvider.NetworkMode)
+	}
 
-	return config, hostConfig, nil, nil
+	// Volume mounts
+	binds, mounts, err := b.buildVolumeConfiguration(cr.Spec.ForProvider.Volumes)
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "cannot build volume configuration")
+	}
+	hostConfig.Binds = binds
+	hostConfig.Mounts = mounts
+
+	// Network attachments
+	networkingConfig, err := b.buildNetworkConfiguration(cr.Spec.ForProvider.Networks)
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "cannot build network configuration")
+	}
+
+	// Security context
+	err = b.buildSecurityConfiguration(cr.Spec.ForProvider.SecurityContext, config, hostConfig)
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "cannot build security configuration")
+	}
+
+	// Health checks
+	err = b.buildHealthCheckConfiguration(cr.Spec.ForProvider.HealthCheck, config)
+	if err != nil {
+		return nil, nil, nil, nil, errors.Wrap(err, "cannot build health check configuration")
+	}
+
+	return config, hostConfig, networkingConfig, nil, nil
+}
+
+// buildPortConfiguration builds Docker port configuration from Crossplane port specs.
+func (b *defaultContainerConfigBuilder) buildPortConfiguration(ports []v1alpha1.PortSpec) (nat.PortSet, nat.PortMap, error) {
+	exposedPorts := make(nat.PortSet)
+	portBindings := make(nat.PortMap)
+
+	for _, portSpec := range ports {
+		protocol := "tcp"
+		if portSpec.Protocol != nil {
+			protocol = strings.ToLower(*portSpec.Protocol)
+		}
+
+		// Create the Docker port format
+		dockerPort := nat.Port(fmt.Sprintf("%d/%s", portSpec.ContainerPort, protocol))
+		exposedPorts[dockerPort] = struct{}{}
+
+		// Add port binding if host port is specified
+		if portSpec.HostPort != nil {
+			hostBinding := nat.PortBinding{
+				HostPort: strconv.Itoa(int(*portSpec.HostPort)),
+			}
+			if portSpec.HostIP != nil {
+				hostBinding.HostIP = *portSpec.HostIP
+			}
+			portBindings[dockerPort] = []nat.PortBinding{hostBinding}
+		}
+	}
+
+	return exposedPorts, portBindings, nil
+}
+
+// buildVolumeConfiguration builds Docker volume configuration from Crossplane volume specs.
+func (b *defaultContainerConfigBuilder) buildVolumeConfiguration(volumes []v1alpha1.VolumeMount) ([]string, []mount.Mount, error) {
+	binds := make([]string, 0)
+	mounts := make([]mount.Mount, 0)
+
+	for _, volumeSpec := range volumes {
+		readOnly := false
+		if volumeSpec.ReadOnly != nil {
+			readOnly = *volumeSpec.ReadOnly
+		}
+
+		// Handle different volume source types
+		switch {
+		case volumeSpec.VolumeSource.HostPath != nil:
+			// Host path mount using binds
+			bind := fmt.Sprintf("%s:%s", volumeSpec.VolumeSource.HostPath.Path, volumeSpec.MountPath)
+			if readOnly {
+				bind += ":ro"
+			}
+			binds = append(binds, bind)
+
+		case volumeSpec.VolumeSource.Volume != nil:
+			// Named Docker volume using mounts
+			mountSpec := mount.Mount{
+				Type:     mount.TypeVolume,
+				Source:   volumeSpec.VolumeSource.Volume.VolumeName,
+				Target:   volumeSpec.MountPath,
+				ReadOnly: readOnly,
+			}
+			mounts = append(mounts, mountSpec)
+
+		case volumeSpec.VolumeSource.Bind != nil:
+			// Bind mount using mounts with propagation options
+			mountSpec := mount.Mount{
+				Type:     mount.TypeBind,
+				Source:   volumeSpec.VolumeSource.Bind.SourcePath,
+				Target:   volumeSpec.MountPath,
+				ReadOnly: readOnly,
+			}
+
+			// Set bind propagation if specified
+			if volumeSpec.VolumeSource.Bind.Propagation != nil {
+				switch *volumeSpec.VolumeSource.Bind.Propagation {
+				case "private":
+					mountSpec.BindOptions = &mount.BindOptions{Propagation: mount.PropagationPrivate}
+				case "rprivate":
+					mountSpec.BindOptions = &mount.BindOptions{Propagation: mount.PropagationRPrivate}
+				case "shared":
+					mountSpec.BindOptions = &mount.BindOptions{Propagation: mount.PropagationShared}
+				case "rshared":
+					mountSpec.BindOptions = &mount.BindOptions{Propagation: mount.PropagationRShared}
+				case "slave":
+					mountSpec.BindOptions = &mount.BindOptions{Propagation: mount.PropagationSlave}
+				case "rslave":
+					mountSpec.BindOptions = &mount.BindOptions{Propagation: mount.PropagationRSlave}
+				}
+			}
+			mounts = append(mounts, mountSpec)
+
+		case volumeSpec.VolumeSource.EmptyDir != nil:
+			// EmptyDir using tmpfs mount
+			mountSpec := mount.Mount{
+				Type:     mount.TypeTmpfs,
+				Target:   volumeSpec.MountPath,
+				ReadOnly: readOnly,
+			}
+
+			// Set size limit if specified
+			if volumeSpec.VolumeSource.EmptyDir.SizeLimit != nil {
+				if mountSpec.TmpfsOptions == nil {
+					mountSpec.TmpfsOptions = &mount.TmpfsOptions{}
+				}
+				mountSpec.TmpfsOptions.SizeBytes, _ = parseByteSize(*volumeSpec.VolumeSource.EmptyDir.SizeLimit)
+			}
+			mounts = append(mounts, mountSpec)
+
+		case volumeSpec.VolumeSource.Secret != nil || volumeSpec.VolumeSource.ConfigMap != nil:
+			// Secret and ConfigMap mounts will need special handling via init containers
+			// or pre-populated volumes. For now, we'll skip these as they require
+			// Kubernetes integration.
+			continue
+
+		default:
+			return nil, nil, errors.Errorf("unsupported volume source type for volume %s", volumeSpec.Name)
+		}
+	}
+
+	return binds, mounts, nil
+}
+
+// buildNetworkConfiguration builds Docker network configuration from Crossplane network specs.
+func (b *defaultContainerConfigBuilder) buildNetworkConfiguration(networks []v1alpha1.NetworkAttachment) (*network.NetworkingConfig, error) {
+	if len(networks) == 0 {
+		return nil, nil
+	}
+
+	networkingConfig := &network.NetworkingConfig{
+		EndpointsConfig: make(map[string]*network.EndpointSettings),
+	}
+
+	for _, networkSpec := range networks {
+		endpointSettings := &network.EndpointSettings{}
+
+		// Set IP address if specified
+		if networkSpec.IPAddress != nil {
+			endpointSettings.IPAMConfig = &network.EndpointIPAMConfig{
+				IPv4Address: *networkSpec.IPAddress,
+			}
+		}
+
+		// Set IPv6 address if specified
+		if networkSpec.IPv6Address != nil {
+			if endpointSettings.IPAMConfig == nil {
+				endpointSettings.IPAMConfig = &network.EndpointIPAMConfig{}
+			}
+			endpointSettings.IPAMConfig.IPv6Address = *networkSpec.IPv6Address
+		}
+
+		// Set aliases if specified
+		if len(networkSpec.Aliases) > 0 {
+			endpointSettings.Aliases = networkSpec.Aliases
+		}
+
+		// Set links if specified (legacy feature)
+		if len(networkSpec.Links) > 0 {
+			endpointSettings.Links = networkSpec.Links
+		}
+
+		networkingConfig.EndpointsConfig[networkSpec.Name] = endpointSettings
+	}
+
+	return networkingConfig, nil
+}
+
+// buildSecurityConfiguration builds Docker security configuration from Crossplane security context.
+func (b *defaultContainerConfigBuilder) buildSecurityConfiguration(securityContext *v1alpha1.SecurityContext, config *container.Config, hostConfig *container.HostConfig) error {
+	if securityContext == nil {
+		return nil
+	}
+
+	// RunAsUser - set the user ID
+	if securityContext.RunAsUser != nil {
+		config.User = strconv.FormatInt(*securityContext.RunAsUser, 10)
+	}
+
+	// RunAsGroup - set the group ID (combine with user if both specified)
+	if securityContext.RunAsGroup != nil {
+		if config.User != "" {
+			config.User = fmt.Sprintf("%s:%d", config.User, *securityContext.RunAsGroup)
+		} else {
+			config.User = fmt.Sprintf(":%d", *securityContext.RunAsGroup)
+		}
+	}
+
+	// ReadOnlyRootFilesystem
+	if securityContext.ReadOnlyRootFilesystem != nil && *securityContext.ReadOnlyRootFilesystem {
+		hostConfig.ReadonlyRootfs = true
+	}
+
+	// Privileged mode
+	if securityContext.AllowPrivilegeEscalation != nil {
+		// Docker doesn't have a direct equivalent, but we can use privileged mode
+		// This is a conservative mapping - if privilege escalation is explicitly disabled,
+		// we ensure the container is not privileged
+		if !*securityContext.AllowPrivilegeEscalation {
+			hostConfig.Privileged = false
+		}
+	}
+
+	// Capabilities
+	if securityContext.Capabilities != nil {
+		if len(securityContext.Capabilities.Add) > 0 {
+			hostConfig.CapAdd = securityContext.Capabilities.Add
+		}
+		if len(securityContext.Capabilities.Drop) > 0 {
+			hostConfig.CapDrop = securityContext.Capabilities.Drop
+		}
+	}
+
+	// Security options for SELinux, AppArmor, and Seccomp
+	var securityOpts []string
+
+	// SELinux options
+	if securityContext.SELinuxOptions != nil {
+		var selinuxLabel []string
+		if securityContext.SELinuxOptions.User != nil {
+			selinuxLabel = append(selinuxLabel, "user:"+*securityContext.SELinuxOptions.User)
+		}
+		if securityContext.SELinuxOptions.Role != nil {
+			selinuxLabel = append(selinuxLabel, "role:"+*securityContext.SELinuxOptions.Role)
+		}
+		if securityContext.SELinuxOptions.Type != nil {
+			selinuxLabel = append(selinuxLabel, "type:"+*securityContext.SELinuxOptions.Type)
+		}
+		if securityContext.SELinuxOptions.Level != nil {
+			selinuxLabel = append(selinuxLabel, "level:"+*securityContext.SELinuxOptions.Level)
+		}
+		if len(selinuxLabel) > 0 {
+			securityOpts = append(securityOpts, "label:"+strings.Join(selinuxLabel, ","))
+		}
+	}
+
+	// Seccomp profile
+	if securityContext.SeccompProfile != nil {
+		switch securityContext.SeccompProfile.Type {
+		case "RuntimeDefault":
+			securityOpts = append(securityOpts, "seccomp:runtime/default")
+		case "Unconfined":
+			securityOpts = append(securityOpts, "seccomp:unconfined")
+		case "Localhost":
+			if securityContext.SeccompProfile.LocalhostProfile != nil {
+				securityOpts = append(securityOpts, "seccomp:"+*securityContext.SeccompProfile.LocalhostProfile)
+			}
+		}
+	}
+
+	// AppArmor profile
+	if securityContext.AppArmorProfile != nil {
+		switch securityContext.AppArmorProfile.Type {
+		case "RuntimeDefault":
+			securityOpts = append(securityOpts, "apparmor:docker-default")
+		case "Unconfined":
+			securityOpts = append(securityOpts, "apparmor:unconfined")
+		case "Localhost":
+			if securityContext.AppArmorProfile.LocalhostProfile != nil {
+				securityOpts = append(securityOpts, "apparmor:"+*securityContext.AppArmorProfile.LocalhostProfile)
+			}
+		}
+	}
+
+	// Apply security options
+	if len(securityOpts) > 0 {
+		hostConfig.SecurityOpt = securityOpts
+	}
+
+	// RunAsNonRoot validation - we can't enforce this at container creation time
+	// but we can add it as a comment or warning in logs
+	if securityContext.RunAsNonRoot != nil && *securityContext.RunAsNonRoot {
+		// This is a validation that should be done by the runtime
+		// Docker will enforce this if the user is set to a non-root user
+		// We don't need to do anything special here
+	}
+
+	return nil
+}
+
+// buildHealthCheckConfiguration builds Docker health check configuration from Crossplane health check spec.
+func (b *defaultContainerConfigBuilder) buildHealthCheckConfiguration(healthCheck *v1alpha1.HealthCheck, config *container.Config) error {
+	if healthCheck == nil {
+		return nil
+	}
+
+	// Validate that test command is provided
+	if len(healthCheck.Test) == 0 {
+		return errors.New("health check test command is required")
+	}
+
+	dockerHealthCheck := &container.HealthConfig{
+		Test: healthCheck.Test,
+	}
+
+	// Set interval (default is 30s if not specified)
+	if healthCheck.Interval != nil {
+		interval, err := parseDuration(healthCheck.Interval.Duration.String())
+		if err != nil {
+			return errors.Wrap(err, "cannot parse health check interval")
+		}
+		dockerHealthCheck.Interval = interval
+	}
+
+	// Set timeout (default is 30s if not specified)
+	if healthCheck.Timeout != nil {
+		timeout, err := parseDuration(healthCheck.Timeout.Duration.String())
+		if err != nil {
+			return errors.Wrap(err, "cannot parse health check timeout")
+		}
+		dockerHealthCheck.Timeout = timeout
+	}
+
+	// Set start period (default is 0s if not specified)
+	if healthCheck.StartPeriod != nil {
+		startPeriod, err := parseDuration(healthCheck.StartPeriod.Duration.String())
+		if err != nil {
+			return errors.Wrap(err, "cannot parse health check start period")
+		}
+		dockerHealthCheck.StartPeriod = startPeriod
+	}
+
+	// Set retries (default is 3 if not specified)
+	if healthCheck.Retries != nil {
+		dockerHealthCheck.Retries = *healthCheck.Retries
+	}
+
+	config.Healthcheck = dockerHealthCheck
+	return nil
+}
+
+// parseDuration parses a duration string into time.Duration.
+func parseDuration(durationStr string) (time.Duration, error) {
+	// Handle common Kubernetes duration formats
+	duration, err := time.ParseDuration(durationStr)
+	if err != nil {
+		return 0, errors.Wrapf(err, "invalid duration format: %s", durationStr)
+	}
+	return duration, nil
+}
+
+// parseByteSize parses a size string like "100Mi", "1Gi" into bytes.
+func parseByteSize(sizeStr string) (int64, error) {
+	// Simple implementation - in production, use a proper parsing library
+	if strings.HasSuffix(sizeStr, "Mi") {
+		val, err := strconv.ParseInt(strings.TrimSuffix(sizeStr, "Mi"), 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		return val * 1024 * 1024, nil
+	}
+	if strings.HasSuffix(sizeStr, "Gi") {
+		val, err := strconv.ParseInt(strings.TrimSuffix(sizeStr, "Gi"), 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		return val * 1024 * 1024 * 1024, nil
+	}
+	return strconv.ParseInt(sizeStr, 10, 64)
 }
 
 func (c *external) updateStatus(cr *v1alpha1.Container, containerInfo *types.ContainerJSON) {
-	// TODO: Update the Container status with observed state
-	// This is a placeholder for MVP
+	// Initialize the observation
+	observation := v1alpha1.ContainerObservation{}
 
-	cr.Status.AtProvider = v1alpha1.ContainerObservation{}
+	// Basic container information
+	observation.ID = containerInfo.ID
+	observation.Name = containerInfo.Name
 
-	cr.Status.AtProvider.ID = containerInfo.ID
-	cr.Status.AtProvider.Name = containerInfo.Name
-
-	// Update state
-	cr.Status.AtProvider.State = v1alpha1.ContainerState{
+	// Container state
+	observation.State = v1alpha1.ContainerState{
 		Status:     containerInfo.State.Status,
 		Running:    containerInfo.State.Running,
 		Paused:     containerInfo.State.Paused,
@@ -312,18 +755,382 @@ func (c *external) updateStatus(cr *v1alpha1.Container, containerInfo *types.Con
 		Error:      containerInfo.State.Error,
 	}
 
+	// Container timestamps
+	if containerInfo.Created != "" {
+		if createdTime, err := time.Parse(time.RFC3339Nano, containerInfo.Created); err == nil {
+			created := metav1.NewTime(createdTime)
+			observation.Created = &created
+		}
+	}
+
+	if containerInfo.State.StartedAt != "" {
+		if startedTime, err := time.Parse(time.RFC3339Nano, containerInfo.State.StartedAt); err == nil {
+			started := metav1.NewTime(startedTime)
+			observation.Started = &started
+			observation.State.StartedAt = &started
+		}
+	}
+
+	if containerInfo.State.FinishedAt != "" {
+		if finishedTime, err := time.Parse(time.RFC3339Nano, containerInfo.State.FinishedAt); err == nil {
+			finished := metav1.NewTime(finishedTime)
+			observation.State.FinishedAt = &finished
+		}
+	}
+
+	// Image information
+	observation.Image = v1alpha1.ContainerImage{
+		Name: containerInfo.Config.Image,
+		ID:   containerInfo.Image,
+	}
+
+	// Port mappings
+	observation.Ports = c.buildObservedPorts(containerInfo)
+
+	// Network information
+	observation.Networks = c.buildObservedNetworks(containerInfo)
+
+	// Health check information
+	if containerInfo.State.Health != nil {
+		observation.State.Health = c.buildObservedHealth(containerInfo.State.Health)
+	}
+
+	// Update the status
+	cr.Status.AtProvider = observation
+
 	// Set condition based on container state
 	if containerInfo.State.Running {
 		cr.SetConditions(xpv1.Available())
+	} else if containerInfo.State.Dead {
+		cr.SetConditions(xpv1.Unavailable().WithMessage("Container is dead"))
+	} else if containerInfo.State.OOMKilled {
+		cr.SetConditions(xpv1.Unavailable().WithMessage("Container was killed due to OOM"))
+	} else if containerInfo.State.Error != "" {
+		cr.SetConditions(xpv1.Unavailable().WithMessage(fmt.Sprintf("Container error: %s", containerInfo.State.Error)))
 	} else {
-		cr.SetConditions(xpv1.Unavailable().WithMessage("Container is not running"))
+		cr.SetConditions(xpv1.Unavailable().WithMessage(fmt.Sprintf("Container is %s", containerInfo.State.Status)))
 	}
 }
 
 func (c *external) isUpToDate(cr *v1alpha1.Container, containerInfo *types.ContainerJSON) bool {
-	// TODO: Implement proper up-to-date checking
-	// For MVP, assume container is up to date if it exists and is running
+	// Check if the container is based on the desired image
+	if containerInfo.Config.Image != cr.Spec.ForProvider.Image {
+		if c.logger != nil {
+			c.logger.Debug("Container image mismatch", "expected", cr.Spec.ForProvider.Image, "actual", containerInfo.Config.Image)
+		}
+		return false
+	}
+
+	// Check restart policy
+	if cr.Spec.ForProvider.RestartPolicy != nil {
+		if containerInfo.HostConfig == nil {
+			if c.logger != nil {
+				c.logger.Debug("Container HostConfig is nil, cannot check restart policy")
+			}
+			return false
+		}
+		expectedPolicy := *cr.Spec.ForProvider.RestartPolicy
+		actualPolicy := string(containerInfo.HostConfig.RestartPolicy.Name)
+		if expectedPolicy != actualPolicy {
+			if c.logger != nil {
+				c.logger.Debug("Container restart policy mismatch", "expected", expectedPolicy, "actual", actualPolicy)
+			}
+			return false
+		}
+
+		// Check retry count for on-failure policy
+		if expectedPolicy == "on-failure" && cr.Spec.ForProvider.MaximumRetryCount != nil {
+			if containerInfo.HostConfig.RestartPolicy.MaximumRetryCount != *cr.Spec.ForProvider.MaximumRetryCount {
+				if c.logger != nil {
+					c.logger.Debug("Container retry count mismatch",
+						"expected", *cr.Spec.ForProvider.MaximumRetryCount,
+						"actual", containerInfo.HostConfig.RestartPolicy.MaximumRetryCount)
+				}
+				return false
+			}
+		}
+	}
+
+	// Check environment variables
+	if !c.isEnvironmentUpToDate(cr.Spec.ForProvider.Environment, containerInfo.Config.Env) {
+		if c.logger != nil {
+			c.logger.Debug("Container environment variables mismatch")
+		}
+		return false
+	}
+
+	// Check labels
+	if !c.isLabelsUpToDate(cr.Spec.ForProvider.Labels, containerInfo.Config.Labels) {
+		if c.logger != nil {
+			c.logger.Debug("Container labels mismatch")
+		}
+		return false
+	}
+
+	// Check privileged mode
+	if cr.Spec.ForProvider.Privileged != nil {
+		if containerInfo.HostConfig == nil {
+			if c.logger != nil {
+				c.logger.Debug("Container HostConfig is nil, cannot check privileged mode")
+			}
+			return false
+		}
+		if containerInfo.HostConfig.Privileged != *cr.Spec.ForProvider.Privileged {
+			if c.logger != nil {
+				c.logger.Debug("Container privileged mode mismatch",
+					"expected", *cr.Spec.ForProvider.Privileged,
+					"actual", containerInfo.HostConfig.Privileged)
+			}
+			return false
+		}
+	}
+
+	// Check if container is healthy (if health checks are configured)
+	if containerInfo.State != nil && containerInfo.State.Health != nil {
+		if containerInfo.State.Health.Status == "unhealthy" {
+			if c.logger != nil {
+				c.logger.Debug("Container is unhealthy")
+			}
+			return false
+		}
+	}
+
+	// If all checks pass and container is running, it's up to date
+	if containerInfo.State == nil {
+		if c.logger != nil {
+			c.logger.Debug("Container State is nil, assuming not running")
+		}
+		return false
+	}
 	return containerInfo.State.Running
+}
+
+// isEnvironmentUpToDate compares expected environment variables with actual container environment.
+func (c *external) isEnvironmentUpToDate(expectedEnv []v1alpha1.EnvVar, actualEnv []string) bool {
+	// Convert actual environment to a map for easier comparison
+	actualEnvMap := make(map[string]string)
+	for _, env := range actualEnv {
+		parts := strings.SplitN(env, "=", 2)
+		if len(parts) == 2 {
+			actualEnvMap[parts[0]] = parts[1]
+		} else if len(parts) == 1 {
+			actualEnvMap[parts[0]] = ""
+		}
+	}
+
+	// Check if expected environment variables match
+	for _, envVar := range expectedEnv {
+		var expectedValue string
+
+		if envVar.Value != nil {
+			expectedValue = *envVar.Value
+		} else if envVar.ValueFrom != nil {
+			// For valueFrom, we would need to resolve the value
+			// For now, skip this comparison as it requires Kubernetes client
+			continue
+		} else {
+			// Invalid env var specification
+			continue
+		}
+
+		actualValue, exists := actualEnvMap[envVar.Name]
+		if !exists || actualValue != expectedValue {
+			return false
+		}
+	}
+
+	return true
+}
+
+// isLabelsUpToDate compares expected labels with actual container labels.
+func (c *external) isLabelsUpToDate(expectedLabels map[string]string, actualLabels map[string]string) bool {
+	if expectedLabels == nil && actualLabels == nil {
+		return true
+	}
+
+	// Check if all expected labels match
+	for key, expectedValue := range expectedLabels {
+		actualValue, exists := actualLabels[key]
+		if !exists || actualValue != expectedValue {
+			return false
+		}
+	}
+
+	return true
+}
+
+// buildEnvironmentConfiguration builds environment variables from Crossplane env var specs.
+func (b *defaultContainerConfigBuilder) buildEnvironmentConfiguration(envVars []v1alpha1.EnvVar) ([]string, error) {
+	env := make([]string, 0, len(envVars))
+
+	for _, envVar := range envVars {
+		var value string
+		var err error
+
+		// Handle direct value
+		if envVar.Value != nil {
+			value = *envVar.Value
+		} else if envVar.ValueFrom != nil {
+			// Handle valueFrom - ConfigMap or Secret references
+			value, err = b.resolveEnvVarValue(envVar.Name, envVar.ValueFrom)
+			if err != nil {
+				// If optional and not found, skip this env var
+				if b.isEnvVarOptional(envVar.ValueFrom) && isNotFound(err) {
+					continue
+				}
+				return nil, errors.Wrapf(err, "cannot resolve value for environment variable %s", envVar.Name)
+			}
+		} else {
+			// Environment variable with no value or valueFrom - invalid
+			return nil, errors.Errorf("environment variable %s has no value or valueFrom specified", envVar.Name)
+		}
+
+		env = append(env, envVar.Name+"="+value)
+	}
+
+	return env, nil
+}
+
+// resolveEnvVarValue resolves environment variable value from ConfigMap or Secret.
+func (b *defaultContainerConfigBuilder) resolveEnvVarValue(envVarName string, valueFrom *v1alpha1.EnvVarSource) (string, error) {
+	// NOTE: This is a placeholder implementation for MVP
+	// In a real implementation, we would need:
+	// 1. Access to Kubernetes client
+	// 2. Namespace context (same as Container resource)
+	// 3. Proper error handling for not found vs other errors
+
+	if valueFrom.ConfigMapKeyRef != nil {
+		// TODO: Implement ConfigMap value resolution
+		// This would require:
+		// - Kubernetes client to get ConfigMap
+		// - Same namespace as the Container resource
+		// - Handle optional flag for missing keys/ConfigMaps
+		return "", errors.New("ConfigMap valueFrom not yet implemented - requires Kubernetes client integration")
+	}
+
+	if valueFrom.SecretKeyRef != nil {
+		// TODO: Implement Secret value resolution
+		// This would require:
+		// - Kubernetes client to get Secret
+		// - Same namespace as the Container resource
+		// - Handle optional flag for missing keys/Secrets
+		return "", errors.New("Secret valueFrom not yet implemented - requires Kubernetes client integration")
+	}
+
+	return "", errors.New("unknown valueFrom source")
+}
+
+// isEnvVarOptional checks if an environment variable source is optional.
+func (b *defaultContainerConfigBuilder) isEnvVarOptional(valueFrom *v1alpha1.EnvVarSource) bool {
+	if valueFrom.ConfigMapKeyRef != nil && valueFrom.ConfigMapKeyRef.Optional != nil {
+		return *valueFrom.ConfigMapKeyRef.Optional
+	}
+	if valueFrom.SecretKeyRef != nil && valueFrom.SecretKeyRef.Optional != nil {
+		return *valueFrom.SecretKeyRef.Optional
+	}
+	return false
+}
+
+// buildObservedPorts builds the observed port mappings from Docker container info.
+func (c *external) buildObservedPorts(containerInfo *types.ContainerJSON) []v1alpha1.ContainerPort {
+	var ports []v1alpha1.ContainerPort
+
+	if containerInfo.NetworkSettings == nil {
+		return ports
+	}
+
+	for port, bindings := range containerInfo.NetworkSettings.Ports {
+		if len(bindings) == 0 {
+			// Port exposed but not bound to host
+			ports = append(ports, v1alpha1.ContainerPort{
+				PrivatePort: int32(port.Int()),
+				Type:        string(port.Proto()),
+			})
+			continue
+		}
+
+		// Port bound to host
+		for _, binding := range bindings {
+			containerPort := v1alpha1.ContainerPort{
+				PrivatePort: int32(port.Int()),
+				Type:        string(port.Proto()),
+				IP:          binding.HostIP,
+			}
+
+			if binding.HostPort != "" {
+				if hostPort, err := strconv.ParseInt(binding.HostPort, 10, 32); err == nil {
+					containerPort.PublicPort = int32(hostPort)
+				}
+			}
+
+			ports = append(ports, containerPort)
+		}
+	}
+
+	return ports
+}
+
+// buildObservedNetworks builds the observed network attachments from Docker container info.
+func (c *external) buildObservedNetworks(containerInfo *types.ContainerJSON) map[string]v1alpha1.NetworkInfo {
+	networks := make(map[string]v1alpha1.NetworkInfo)
+
+	if containerInfo.NetworkSettings == nil {
+		return networks
+	}
+
+	for networkName, networkSettings := range containerInfo.NetworkSettings.Networks {
+		networkInfo := v1alpha1.NetworkInfo{
+			NetworkID:           networkSettings.NetworkID,
+			EndpointID:          networkSettings.EndpointID,
+			Gateway:             networkSettings.Gateway,
+			IPAddress:           networkSettings.IPAddress,
+			IPPrefixLen:         int32(networkSettings.IPPrefixLen),
+			IPv6Gateway:         networkSettings.IPv6Gateway,
+			GlobalIPv6Address:   networkSettings.GlobalIPv6Address,
+			GlobalIPv6PrefixLen: int32(networkSettings.GlobalIPv6PrefixLen),
+			MacAddress:          networkSettings.MacAddress,
+		}
+		networks[networkName] = networkInfo
+	}
+
+	return networks
+}
+
+// buildObservedHealth builds the observed health status from Docker health info.
+func (c *external) buildObservedHealth(health *types.Health) *v1alpha1.ContainerHealth {
+	if health == nil {
+		return nil
+	}
+
+	containerHealth := &v1alpha1.ContainerHealth{
+		Status:        health.Status,
+		FailingStreak: health.FailingStreak,
+	}
+
+	// Convert health check logs
+	if len(health.Log) > 0 {
+		containerHealth.Log = make([]v1alpha1.HealthCheckResult, len(health.Log))
+		for i, log := range health.Log {
+			result := v1alpha1.HealthCheckResult{
+				ExitCode: log.ExitCode,
+				Output:   log.Output,
+			}
+
+			if !log.Start.IsZero() {
+				start := metav1.NewTime(log.Start)
+				result.Start = &start
+			}
+
+			if !log.End.IsZero() {
+				end := metav1.NewTime(log.End)
+				result.End = &end
+			}
+
+			containerHealth.Log[i] = result
+		}
+	}
+
+	return containerHealth
 }
 
 func isNotFound(err error) bool {

@@ -33,8 +33,9 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/client"
+	dockerclient "github.com/docker/docker/client"
 	"github.com/docker/go-connections/tlsconfig"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,10 +43,28 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rossigee/provider-docker/apis/v1beta1"
 )
+
+// NotFoundError represents a resource not found error
+type NotFoundError struct {
+	ResourceType string
+	ResourceID   string
+}
+
+func (e *NotFoundError) Error() string {
+	return fmt.Sprintf("%s %s not found", e.ResourceType, e.ResourceID)
+}
+
+// NewNotFoundError creates a new NotFoundError
+func NewNotFoundError(resourceType, resourceID string) error {
+	return &NotFoundError{
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+	}
+}
 
 const (
 	errNoProviderConfig     = "no providerConfig specified"
@@ -60,15 +79,16 @@ const (
 type DockerClient interface {
 	// Container operations
 	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig,
-		networkingConfig *network.NetworkingConfig, platform *image.Platform, containerName string) (container.CreateResponse, error)
+		networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
 	ContainerStart(ctx context.Context, containerID string, options container.StartOptions) error
 	ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error
 	ContainerRestart(ctx context.Context, containerID string, options container.StopOptions) error
 	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
-	ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error)
-	ContainerList(ctx context.Context, options container.ListOptions) ([]container.Container, error)
+	ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error)
+	ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error)
 	ContainerLogs(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error)
-	ContainerStats(ctx context.Context, containerID string, stream bool) (container.StatsResponseReader, error)
+	// ContainerStats temporarily disabled due to complex interface mocking
+	// ContainerStats(ctx context.Context, containerID string, stream bool) (container.StatsResponseReader, error)
 	ContainerUpdate(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error)
 	ContainerRename(ctx context.Context, containerID, newContainerName string) error
 	ContainerPause(ctx context.Context, containerID string) error
@@ -77,7 +97,7 @@ type DockerClient interface {
 	// Image operations
 	ImagePull(ctx context.Context, refStr string, options image.PullOptions) (io.ReadCloser, error)
 	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	ImageInspectWithRaw(ctx context.Context, imageID string) (image.InspectResponse, []byte, error)
+	ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error)
 	ImageRemove(ctx context.Context, imageID string, options image.RemoveOptions) ([]image.DeleteResponse, error)
 
 	// Volume operations
@@ -97,7 +117,7 @@ type DockerClient interface {
 	// System operations
 	Ping(ctx context.Context) (types.Ping, error)
 	Info(ctx context.Context) (system.Info, error)
-	Version(ctx context.Context) (types.Version, error)
+	ServerVersion(ctx context.Context) (types.Version, error)
 
 	// Close the client
 	Close() error
@@ -105,11 +125,14 @@ type DockerClient interface {
 
 // dockerClient is a wrapper around the Docker client that implements DockerClient.
 type dockerClient struct {
-	*client.Client
+	*dockerclient.Client
 }
 
+// Ensure dockerClient implements DockerClient interface
+var _ DockerClient = (*dockerClient)(nil)
+
 // NewDockerClient creates a new Docker client from a ProviderConfig.
-func NewDockerClient(ctx context.Context, k8s client.Client, mg resource.Managed) (DockerClient, error) {
+func NewDockerClient(ctx context.Context, k8s k8sclient.Client, mg resource.Managed) (DockerClient, error) {
 	pc, err := GetProviderConfig(ctx, k8s, mg)
 	if err != nil {
 		return nil, errors.Wrap(err, errGetProviderConfig)
@@ -133,22 +156,22 @@ func NewDockerClient(ctx context.Context, k8s client.Client, mg resource.Managed
 }
 
 // createDockerClient creates a new Docker client with the given configuration.
-func createDockerClient(pc *v1beta1.ProviderConfig, creds *DockerCredentials) (*client.Client, error) {
-	opts := []client.Opt{
-		client.FromEnv,
+func createDockerClient(pc *v1beta1.ProviderConfig, creds *DockerCredentials) (*dockerclient.Client, error) {
+	opts := []dockerclient.Opt{
+		dockerclient.FromEnv,
 	}
 
 	// Set host if specified
 	if pc.Spec.Host != nil {
-		opts = append(opts, client.WithHost(*pc.Spec.Host))
+		opts = append(opts, dockerclient.WithHost(*pc.Spec.Host))
 	}
 
 	// Set API version if specified
 	if pc.Spec.APIVersion != nil {
-		opts = append(opts, client.WithAPIVersionNegotiation())
-		opts = append(opts, client.WithVersion(*pc.Spec.APIVersion))
+		opts = append(opts, dockerclient.WithAPIVersionNegotiation())
+		opts = append(opts, dockerclient.WithVersion(*pc.Spec.APIVersion))
 	} else {
-		opts = append(opts, client.WithAPIVersionNegotiation())
+		opts = append(opts, dockerclient.WithAPIVersionNegotiation())
 	}
 
 	// Configure TLS if needed
@@ -157,7 +180,7 @@ func createDockerClient(pc *v1beta1.ProviderConfig, creds *DockerCredentials) (*
 		if err != nil {
 			return nil, err
 		}
-		opts = append(opts, client.WithHTTPClient(httpClient))
+		opts = append(opts, dockerclient.WithHTTPClient(httpClient))
 	}
 
 	// Set timeout
@@ -165,9 +188,9 @@ func createDockerClient(pc *v1beta1.ProviderConfig, creds *DockerCredentials) (*
 	if pc.Spec.Timeout != nil {
 		timeout = pc.Spec.Timeout.Duration
 	}
-	opts = append(opts, client.WithTimeout(timeout))
+	opts = append(opts, dockerclient.WithTimeout(timeout))
 
-	return client.NewClientWithOpts(opts...)
+	return dockerclient.NewClientWithOpts(opts...)
 }
 
 // createHTTPClientWithTLS creates an HTTP client with TLS configuration.
@@ -210,8 +233,8 @@ func createHTTPClientWithTLS(tlsConfig *v1beta1.TLSConfig, creds *DockerCredenti
 	} else if tlsConfig.CertPath != nil {
 		// Load from file path
 		options := tlsconfig.Options{
-			CertPath: *tlsConfig.CertPath + "/cert.pem",
-			KeyPath:  *tlsConfig.CertPath + "/key.pem",
+			CertFile: *tlsConfig.CertPath + "/cert.pem",
+			KeyFile:  *tlsConfig.CertPath + "/key.pem",
 		}
 		if tlsConfig.Verify != nil && !*tlsConfig.Verify {
 			options.InsecureSkipVerify = true
@@ -219,7 +242,7 @@ func createHTTPClientWithTLS(tlsConfig *v1beta1.TLSConfig, creds *DockerCredenti
 		if len(tlsConfig.CAData) > 0 || (creds != nil && len(creds.CAData) > 0) {
 			// CA already configured above
 		} else {
-			options.CAPath = *tlsConfig.CertPath + "/ca.pem"
+			options.CAFile = *tlsConfig.CertPath + "/ca.pem"
 		}
 
 		tlsConf, err := tlsconfig.Client(options)
@@ -256,7 +279,7 @@ func createHTTPClientWithTLS(tlsConfig *v1beta1.TLSConfig, creds *DockerCredenti
 }
 
 // GetProviderConfig returns the ProviderConfig for the given managed resource.
-func GetProviderConfig(ctx context.Context, k8s client.Client, mg resource.Managed) (*v1beta1.ProviderConfig, error) {
+func GetProviderConfig(ctx context.Context, k8s k8sclient.Client, mg resource.Managed) (*v1beta1.ProviderConfig, error) {
 	if mg.GetProviderConfigReference() == nil {
 		return nil, errors.New(errNoProviderConfig)
 	}
@@ -270,7 +293,7 @@ func GetProviderConfig(ctx context.Context, k8s client.Client, mg resource.Manag
 }
 
 // TrackProviderConfigUsage tracks the usage of a ProviderConfig.
-func TrackProviderConfigUsage(ctx context.Context, k8s client.Client, mg resource.Managed) error {
+func TrackProviderConfigUsage(ctx context.Context, k8s k8sclient.Client, mg resource.Managed) error {
 	if mg.GetProviderConfigReference() == nil {
 		return errors.New(errNoProviderConfig)
 	}
@@ -314,7 +337,7 @@ type RegistryAuth struct {
 }
 
 // ExtractCredentials extracts credentials from the ProviderConfig.
-func ExtractCredentials(ctx context.Context, k8s client.Client, pc *v1beta1.ProviderConfig) (*DockerCredentials, error) {
+func ExtractCredentials(ctx context.Context, k8s k8sclient.Client, pc *v1beta1.ProviderConfig) (*DockerCredentials, error) {
 	if pc.Spec.Credentials.SecretRef == nil {
 		return &DockerCredentials{}, nil
 	}

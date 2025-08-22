@@ -1,0 +1,168 @@
+# Standardized Release Template for Crossplane Providers
+# Version: 2025-08-14
+#
+# This template handles ALL publishing for releases
+# - Builds from source on tag creation
+# - Creates both version-specific and latest tags from SAME image
+# - Publishes to primary registry (ghcr.io/rossigee)
+# - Creates GitHub release with notes
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  GO_VERSION: '1.24.5'
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Vendor Dependencies
+        run: make vendor vendor.check
+
+      - name: Extract Version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.PAT_TOKEN }}
+
+      - name: Install Crossplane CLI
+        run: |
+          # Create the tools directory and install crossplane CLI
+          mkdir -p .cache/tools/linux_x86_64
+          curl -fsSLo .cache/tools/linux_x86_64/crossplane-cli-v2.0.2 \
+            https://releases.crossplane.io/stable/v2.0.2/bin/linux_amd64/crank?source=build
+          chmod +x .cache/tools/linux_x86_64/crossplane-cli-v2.0.2
+
+      - name: Build
+        run: make build
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+
+      - name: Verify Build Artifacts
+        run: |
+          # Verify provider binary exists (build system uses _output/bin/)
+          ls -la _output/bin/
+          ls -la _output/bin/linux_amd64/
+          if [ ! -f _output/bin/linux_amd64/provider ]; then
+            echo "ERROR: Provider binary not found!"
+            find . -name "provider" -type f 2>/dev/null || echo "No provider binary found anywhere"
+            exit 1
+          fi
+          ls -la _output/bin/linux_amd64/provider
+          file _output/bin/linux_amd64/provider
+          echo "✅ Provider binary verification successful"
+
+      # CRITICAL: Build Docker image once, tag it with both version and latest
+      - name: Build Docker Image (Version)
+        run: |
+          # Create temporary build context and copy binary (matching make docker build)
+          BUILD_CONTEXT=$(mktemp -d)
+          cp cluster/images/provider-docker/Dockerfile $BUILD_CONTEXT/
+          cp -r _output/bin/ $BUILD_CONTEXT/
+
+          # Build container image for specific version
+          docker build -t ghcr.io/rossigee/provider-docker:${{ steps.version.outputs.version }} \
+            --build-arg VERSION=${{ steps.version.outputs.version }} \
+            --build-arg TARGETOS=linux \
+            --build-arg TARGETARCH=amd64 \
+            $BUILD_CONTEXT
+
+          # Cleanup
+          rm -rf $BUILD_CONTEXT
+
+      # CRITICAL: Tag the SAME image as latest (ensures identical images)
+      - name: Build Docker Image (Latest)
+        run: |
+          # Tag the same image as latest
+          docker tag ghcr.io/rossigee/provider-docker:${{ steps.version.outputs.version }} \
+            ghcr.io/rossigee/provider-docker:latest
+
+      # CRITICAL: Push both tags (they point to the same image)
+      - name: Push Docker Images
+        run: |
+          # Push both version and latest tags
+          docker push ghcr.io/rossigee/provider-docker:${{ steps.version.outputs.version }}
+          docker push ghcr.io/rossigee/provider-docker:latest
+
+      - name: Publish Crossplane Packages
+        run: |
+          # Publish versioned package
+          make publish
+          # Publish latest package
+          make publish VERSION=latest
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          REGISTRY_ORGS: ghcr.io/rossigee
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+
+# Key Principles for this Template:
+#
+# 1. SINGLE SOURCE OF TRUTH FOR PUBLISHING
+#    - Only this workflow publishes to registries
+#    - CI workflow only validates builds
+#    - Eliminates tag conflicts
+#
+# 2. IDENTICAL VERSION AND LATEST TAGS
+#    - Build image once with version tag
+#    - Tag the SAME image as latest (line 87-88)
+#    - Push both tags (they're identical)
+#    - No separate builds = no image differences
+#
+# 3. STANDARDIZED REGISTRY PUBLISHING
+#    - Primary: ghcr.io/rossigee/provider-docker
+#    - Version tag: v1.2.3
+#    - Latest tag: latest
+#    - Both Crossplane packages and container images
+#
+# 4. BUILD FROM SOURCE
+#    - Always build from the tagged source
+#    - No dependency on pre-built artifacts
+#    - Ensures reproducible builds
+#
+# 5. PROPER AUTHENTICATION
+#    - Uses PAT_TOKEN for registry authentication
+#    - Proper permissions for package publishing
+#    - GitHub release creation
+#
+# To apply this template:
+# 1. Copy this structure to .github/workflows/release.yml
+# 2. Replace PROVIDER_NAME with actual provider name (e.g., provider-docker)
+# 3. Ensure Dockerfile path is correct
+# 4. Test with a version tag (should publish both tags identically)
+# 5. Verify latest and version tags point to same image digest

@@ -1,0 +1,36 @@
+# Goreleaser
+/dist/
+/.github/release-notes.md
+
+# Build
+/provider-docker
+*.out
+/package/*.xpkg
+/kubeconfig
+__debug*
+_output/
+build/
+
+# Docs
+/.cache/
+/.public/
+/node_modules/
+
+# Test artifacts
+*.test
+coverage.html
+coverage.out
+
+# Work
+/.work/
+.vscode/
+.kind
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store

@@ -1,0 +1,271 @@
+/*
+Copyright 2025 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.0
+  name: providerconfigs.docker.crossplane.io
+spec:
+  group: docker.crossplane.io
+  names:
+    categories:
+    - crossplane
+    - provider
+    - docker
+    kind: ProviderConfig
+    listKind: ProviderConfigList
+    plural: providerconfigs
+    singular: providerconfig
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    - jsonPath: .spec.credentials.secretRef.name
+      name: SECRET-NAME
+      priority: 1
+      type: string
+    - jsonPath: .spec.host
+      name: HOST
+      priority: 1
+      type: string
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: A ProviderConfig configures a Docker provider.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: A ProviderConfigSpec defines the desired state of a ProviderConfig.
+            properties:
+              apiVersion:
+                description: |-
+                  APIVersion is the Docker API version to use.
+                  If not specified, the client will negotiate the API version.
+                type: string
+              credentials:
+                description: Credentials required to authenticate to this provider.
+                properties:
+                  env:
+                    description: |-
+                      Env is a reference to an environment variable that contains credentials
+                      that must be used to connect to the provider.
+                    properties:
+                      name:
+                        description: Name is the name of an environment variable.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  fs:
+                    description: |-
+                      Fs is a reference to a filesystem location that contains credentials that
+                      must be used to connect to the provider.
+                    properties:
+                      path:
+                        description: Path is a filesystem path.
+                        type: string
+                    required:
+                    - path
+                    type: object
+                  secretRef:
+                    description: |-
+                      A SecretRef is a reference to a secret key that contains the credentials
+                      that must be used to connect to the provider.
+                    properties:
+                      key:
+                        description: The key to select.
+                        type: string
+                      name:
+                        description: Name of the secret.
+                        type: string
+                      namespace:
+                        description: Namespace of the secret.
+                        type: string
+                    required:
+                    - key
+                    - name
+                    - namespace
+                    type: object
+                  source:
+                    description: Source of the provider credentials.
+                    enum:
+                    - Secret
+                    type: string
+                required:
+                - source
+                type: object
+              host:
+                description: |-
+                  Host is the Docker daemon endpoint to connect to.
+                  Supported formats:
+                  - unix:///var/run/docker.sock (Unix socket)
+                  - tcp://host:port (TCP without TLS)
+                  - tcp://host:port (TCP with TLS when TLSConfig is provided)
+                type: string
+              registryAuth:
+                description: |-
+                  RegistryAuth provides default registry authentication.
+                  This can be overridden per-container.
+                properties:
+                  email:
+                    description: Email for registry authentication (legacy Docker
+                      registries).
+                    type: string
+                  identityToken:
+                    description: |-
+                      IdentityToken for registry authentication (OAuth/JWT).
+                      Alternative to Username/Password.
+                    type: string
+                  password:
+                    description: Password for registry authentication.
+                    type: string
+                  registry:
+                    description: Registry is the registry hostname (e.g., docker.io,
+                      gcr.io).
+                    type: string
+                  registryToken:
+                    description: |-
+                      RegistryToken for registry authentication.
+                      Alternative to Username/Password.
+                    type: string
+                  username:
+                    description: Username for registry authentication.
+                    type: string
+                required:
+                - registry
+                type: object
+              timeout:
+                description: |-
+                  Timeout is the connection timeout for Docker API calls.
+                  Defaults to 30s.
+                type: string
+              tlsConfig:
+                description: |-
+                  TLSConfig configures TLS for TCP connections to Docker daemon.
+                  Only used when Host uses tcp:// scheme.
+                properties:
+                  caData:
+                    description: |-
+                      CAData contains the CA certificate data (PEM format).
+                      Alternative to CertPath for CA certificate.
+                    format: byte
+                    type: string
+                  certData:
+                    description: |-
+                      CertData contains the client certificate data (PEM format).
+                      Alternative to CertPath for client certificate.
+                    format: byte
+                    type: string
+                  certPath:
+                    description: |-
+                      CertPath is the path to the directory containing TLS certificates.
+                      Expected files: ca.pem, cert.pem, key.pem
+                    type: string
+                  keyData:
+                    description: |-
+                      KeyData contains the client private key data (PEM format).
+                      Alternative to CertPath for client private key.
+                    format: byte
+                    type: string
+                  verify:
+                    description: |-
+                      Verify enables TLS certificate verification.
+                      Defaults to true for tcp:// connections.
+                    type: boolean
+                type: object
+            required:
+            - credentials
+            type: object
+          status:
+            description: A ProviderConfigStatus reflects the observed state of a ProviderConfig.
+            properties:
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              users:
+                description: Users of this provider configuration.
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
