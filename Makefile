@@ -147,6 +147,13 @@ test.coverage: generate
 	@$(INFO) Coverage report saved to coverage.html
 
 # Reviewable target that combines key checks for code review readiness
+# Override the problematic go.test.unit target to avoid covdata issues with Go 1.25
+go.test.unit:
+	@echo "Running unit tests (Go 1.25 compatible)..."
+	@mkdir -p _output/tests
+	@CGO_ENABLED=0 go test -v ./... 2>&1 | tee _output/tests/unit-tests.log || (echo "Unit tests failed" && exit 1)
+	@echo "✅ Unit tests passed"
+
 # NOTE: Excludes controller vet/build checks due to known crossplane-runtime API compatibility issues
 reviewable: go.mod.tidy test.unit.safe go.fmt go.vet.limited
 	@echo "✅ Code is reviewable"

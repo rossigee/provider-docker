@@ -693,6 +693,66 @@ type Container struct {
 	Status ContainerStatus `json:"status,omitempty"`
 }
 
+// GetCondition returns the condition for the given ConditionType.
+func (cr *Container) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return cr.Status.GetCondition(ct)
+}
+
+// SetConditions sets the conditions on the resource.
+func (cr *Container) SetConditions(c ...xpv1.Condition) {
+	cr.Status.SetConditions(c...)
+}
+
+// GetDeletionPolicy returns the deletion policy of the resource.
+func (cr *Container) GetDeletionPolicy() xpv1.DeletionPolicy {
+	return cr.Spec.DeletionPolicy
+}
+
+// SetDeletionPolicy sets the deletion policy of the resource.
+func (cr *Container) SetDeletionPolicy(p xpv1.DeletionPolicy) {
+	cr.Spec.DeletionPolicy = p
+}
+
+// GetManagementPolicies returns the management policies of the resource.
+func (cr *Container) GetManagementPolicies() xpv1.ManagementPolicies {
+	return cr.Spec.ManagementPolicies
+}
+
+// SetManagementPolicies sets the management policies of the resource.
+func (cr *Container) SetManagementPolicies(p xpv1.ManagementPolicies) {
+	cr.Spec.ManagementPolicies = p
+}
+
+// GetProviderConfigReference returns the provider config reference.
+func (cr *Container) GetProviderConfigReference() *xpv1.Reference {
+	return cr.Spec.ProviderConfigReference
+}
+
+// SetProviderConfigReference sets the provider config reference.
+func (cr *Container) SetProviderConfigReference(r *xpv1.Reference) {
+	cr.Spec.ProviderConfigReference = r
+}
+
+// GetPublishConnectionDetailsTo returns the publish connection details to config.
+func (cr *Container) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
+	return cr.Spec.PublishConnectionDetailsTo
+}
+
+// SetPublishConnectionDetailsTo sets the publish connection details to config.
+func (cr *Container) SetPublishConnectionDetailsTo(p *xpv1.PublishConnectionDetailsTo) {
+	cr.Spec.PublishConnectionDetailsTo = p
+}
+
+// GetWriteConnectionSecretToReference returns the write connection secret to reference.
+func (cr *Container) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
+	return cr.Spec.WriteConnectionSecretToReference
+}
+
+// SetWriteConnectionSecretToReference sets the write connection secret to reference.
+func (cr *Container) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
+	cr.Spec.WriteConnectionSecretToReference = r
+}
+
 // +kubebuilder:object:root=true
 
 // ContainerList contains a list of Container.
