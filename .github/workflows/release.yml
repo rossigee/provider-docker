@@ -89,11 +89,22 @@ jobs:
           cp cluster/images/provider-docker/Dockerfile $BUILD_CONTEXT/
           cp -r _output/bin/ $BUILD_CONTEXT/
 
-          # Build container image for specific version
+          # Build container image for specific version with OpenContainers labels
           docker build -t ghcr.io/rossigee/provider-docker:${{ steps.version.outputs.version }} \
             --build-arg VERSION=${{ steps.version.outputs.version }} \
             --build-arg TARGETOS=linux \
             --build-arg TARGETARCH=amd64 \
+            --label "org.opencontainers.image.title=provider-docker" \
+            --label "org.opencontainers.image.description=Crossplane provider for Docker container and resource management" \
+            --label "org.opencontainers.image.version=${{ steps.version.outputs.version }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.url=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.documentation=${{ github.server_url }}/${{ github.repository }}/blob/${{ steps.version.outputs.version }}/README.md" \
+            --label "org.opencontainers.image.vendor=rossigee" \
+            --label "org.opencontainers.image.licenses=Apache-2.0" \
+            --label "org.opencontainers.image.ref.name=${{ steps.version.outputs.version }}" \
             $BUILD_CONTEXT
 
           # Cleanup
