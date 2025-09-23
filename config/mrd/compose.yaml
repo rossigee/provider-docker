@@ -1,0 +1,18 @@
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: ManagedResourceDefinition
+metadata:
+  name: composestacks.compose.docker.crossplane.io
+spec:
+  group: compose.docker.crossplane.io
+  version: v1alpha1
+  names:
+    kind: ComposeStack
+    plural: composestacks
+  claimNames:
+    kind: ComposeStackClaim
+    plural: composestackclaims
+  connectionSecretKeys:
+  - stackID
+  - services
+  defaultActivationPolicy: "Optional"
+  requiredActivationPolicy: "Optional"

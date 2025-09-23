@@ -20,14 +20,26 @@ package controller
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	xpcontroller "github.com/crossplane/crossplane-runtime/pkg/controller"
+	xpcontroller "github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 
+	"github.com/rossigee/provider-docker/internal/controller/compose"
 	"github.com/rossigee/provider-docker/internal/controller/container"
 )
 
 // Setup Docker controllers with the manager.
 func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
+	// Setup v1alpha1 container controller (cluster-scoped for backwards compatibility)
 	if err := container.Setup(mgr, o); err != nil {
+		return err
+	}
+
+	// Setup v1beta1 container controller (namespaced for v2 compatibility)
+	if err := container.SetupV1Beta1(mgr, o); err != nil {
+		return err
+	}
+
+	// Setup compose controllers (v1alpha1 only for now)
+	if err := compose.Setup(mgr, o); err != nil {
 		return err
 	}
 

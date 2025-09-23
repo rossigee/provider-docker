@@ -1,0 +1,148 @@
+# Example v1beta1 (namespaced) Container resources for Crossplane v2
+# These resources provide namespace isolation and are the recommended approach for new deployments
+
+apiVersion: container.docker.m.crossplane.io/v1beta1
+kind: Container
+metadata:
+  name: nginx-container
+  namespace: my-tenant  # Namespace isolation
+spec:
+  forProvider:
+    # Docker image to run
+    image: nginx:1.21
+
+    # Container name (optional)
+    name: my-nginx
+
+    # Port mappings
+    ports:
+    - containerPort: 80
+      hostPort: 8080
+      protocol: TCP
+
+    # Environment variables
+    environment:
+    - name: NGINX_HOST
+      value: example.com
+    - name: NGINX_PORT
+      value: "80"
+
+    # Labels
+    labels:
+      app: nginx
+      version: "1.21"
+
+    # Restart policy
+    restartPolicy: always
+
+    # Start container after creation
+    startOnCreate: true
+
+  # Provider configuration reference
+  providerConfigRef:
+    name: default
+
+  # Deletion policy
+  deletionPolicy: Delete
+---
+apiVersion: container.docker.m.crossplane.io/v1beta1
+kind: Container
+metadata:
+  name: redis-container
+  namespace: my-tenant  # Same namespace for tenant isolation
+spec:
+  forProvider:
+    image: redis:7-alpine
+    name: my-redis
+
+    # Custom command
+    command: ["redis-server"]
+    args: ["--appendonly", "yes"]
+
+    # Port mapping
+    ports:
+    - containerPort: 6379
+      hostPort: 6379
+
+    # Environment variables from secrets (in same namespace)
+    environment:
+    - name: REDIS_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: redis-secret
+          key: password
+
+    # Volume mounts
+    volumes:
+    - name: redis-data
+      mountPath: /data
+      source:
+        hostPath:
+          path: /opt/redis/data
+          type: DirectoryOrCreate
+
+    # Resource limits
+    resources:
+      limits:
+        memory: "512Mi"
+        cpu: "0.5"
+      requests:
+        memory: "256Mi"
+        cpu: "0.1"
+
+    # Security context
+    securityContext:
+      runAsUser: 999
+      runAsNonRoot: true
+      readOnlyRootFilesystem: false
+
+    # Health check
+    healthCheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+    restartPolicy: unless-stopped
+
+  providerConfigRef:
+    name: default
+
+  deletionPolicy: Delete
+---
+# Example showing multi-tenant deployment with namespace isolation
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: another-tenant
+---
+apiVersion: container.docker.m.crossplane.io/v1beta1
+kind: Container
+metadata:
+  name: nginx-container  # Same name, different namespace
+  namespace: another-tenant
+spec:
+  forProvider:
+    image: nginx:1.22  # Different version for this tenant
+    name: tenant2-nginx
+
+    ports:
+    - containerPort: 80
+      hostPort: 8081  # Different host port
+
+    environment:
+    - name: NGINX_HOST
+      value: tenant2.example.com
+
+    labels:
+      app: nginx
+      tenant: another-tenant
+      version: "1.22"
+
+    restartPolicy: always
+    startOnCreate: true
+
+  providerConfigRef:
+    name: default
+
+  deletionPolicy: Delete

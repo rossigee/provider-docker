@@ -1,0 +1,443 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: composestacks.compose.docker.crossplane.io
+spec:
+  group: compose.docker.crossplane.io
+  names:
+    categories:
+    - crossplane
+    - managed
+    - docker
+    kind: ComposeStack
+    listKind: ComposeStackList
+    plural: composestacks
+    singular: composestack
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.atProvider.projectName
+      name: PROJECT
+      type: string
+    - jsonPath: .status.atProvider.services.length
+      name: SERVICES
+      type: integer
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: READY
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Synced')].status
+      name: SYNCED
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              deletionPolicy:
+                default: Delete
+                enum:
+                - Orphan
+                - Delete
+                type: string
+              forProvider:
+                properties:
+                  compose:
+                    type: string
+                  composeRef:
+                    properties:
+                      configMapRef:
+                        properties:
+                          key:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                        required:
+                        - key
+                        - name
+                        type: object
+                      secretRef:
+                        properties:
+                          key:
+                            type: string
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                        required:
+                        - key
+                        - name
+                        type: object
+                    type: object
+                  envFiles:
+                    items:
+                      properties:
+                        configMapRef:
+                          properties:
+                            key:
+                              type: string
+                            name:
+                              type: string
+                            namespace:
+                              type: string
+                          required:
+                          - key
+                          - name
+                          type: object
+                        secretRef:
+                          properties:
+                            key:
+                              type: string
+                            name:
+                              type: string
+                            namespace:
+                              type: string
+                          required:
+                          - key
+                          - name
+                          type: object
+                      type: object
+                    type: array
+                  environment:
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                        valueFrom:
+                          properties:
+                            configMapKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                              required:
+                              - key
+                              - name
+                              type: object
+                            secretKeyRef:
+                              properties:
+                                key:
+                                  type: string
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                              required:
+                              - key
+                              - name
+                              type: object
+                          type: object
+                      required:
+                      - name
+                      type: object
+                    type: array
+                  projectName:
+                    type: string
+                  serviceOverrides:
+                    additionalProperties:
+                      properties:
+                        environment:
+                          items:
+                            properties:
+                              name:
+                                type: string
+                              value:
+                                type: string
+                              valueFrom:
+                                properties:
+                                  configMapKeyRef:
+                                    properties:
+                                      key:
+                                        type: string
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - key
+                                    - name
+                                    type: object
+                                  secretKeyRef:
+                                    properties:
+                                      key:
+                                        type: string
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - key
+                                    - name
+                                    type: object
+                                type: object
+                            required:
+                            - name
+                            type: object
+                          type: array
+                        labels:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        replicas:
+                          format: int32
+                          type: integer
+                        resources:
+                          properties:
+                            limits:
+                              additionalProperties:
+                                type: string
+                              type: object
+                            requests:
+                              additionalProperties:
+                                type: string
+                              type: object
+                          type: object
+                        restartPolicy:
+                          enum:
+                          - "no"
+                          - on-failure
+                          - always
+                          - unless-stopped
+                          type: string
+                      type: object
+                    type: object
+                  workingDir:
+                    type: string
+                type: object
+              managementPolicies:
+                default:
+                - '*'
+                items:
+                  enum:
+                  - Observe
+                  - Create
+                  - Update
+                  - Delete
+                  - LateInitialize
+                  - '*'
+                  type: string
+                type: array
+              providerConfigRef:
+                default:
+                  name: default
+                properties:
+                  name:
+                    type: string
+                  policy:
+                    properties:
+                      resolution:
+                        default: Required
+                        enum:
+                        - Required
+                        - Optional
+                        type: string
+                      resolve:
+                        enum:
+                        - Always
+                        - IfNotPresent
+                        type: string
+                    type: object
+                required:
+                - name
+                type: object
+              writeConnectionSecretToRef:
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+            required:
+            - forProvider
+            type: object
+          status:
+            properties:
+              atProvider:
+                properties:
+                  composeVersion:
+                    type: string
+                  networks:
+                    items:
+                      properties:
+                        createdAt:
+                          format: date-time
+                          type: string
+                        driver:
+                          type: string
+                        id:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                  parsedAt:
+                    format: date-time
+                    type: string
+                  projectName:
+                    type: string
+                  services:
+                    additionalProperties:
+                      properties:
+                        containerID:
+                          type: string
+                        createdAt:
+                          format: date-time
+                          type: string
+                        health:
+                          properties:
+                            failingStreak:
+                              format: int32
+                              type: integer
+                            log:
+                              items:
+                                properties:
+                                  end:
+                                    format: date-time
+                                    type: string
+                                  exitCode:
+                                    format: int32
+                                    type: integer
+                                  output:
+                                    type: string
+                                  start:
+                                    format: date-time
+                                    type: string
+                                required:
+                                - exitCode
+                                type: object
+                              type: array
+                            status:
+                              enum:
+                              - starting
+                              - healthy
+                              - unhealthy
+                              - none
+                              type: string
+                          required:
+                          - status
+                          type: object
+                        image:
+                          type: string
+                        name:
+                          type: string
+                        ports:
+                          items:
+                            properties:
+                              containerPort:
+                                format: int32
+                                type: integer
+                              hostIP:
+                                type: string
+                              hostPort:
+                                format: int32
+                                type: integer
+                              protocol:
+                                enum:
+                                - TCP
+                                - UDP
+                                - SCTP
+                                type: string
+                            required:
+                            - containerPort
+                            type: object
+                          type: array
+                        startedAt:
+                          format: date-time
+                          type: string
+                        state:
+                          enum:
+                          - pending
+                          - creating
+                          - running
+                          - restarting
+                          - exited
+                          - paused
+                          - dead
+                          - unknown
+                          type: string
+                      required:
+                      - name
+                      - state
+                      type: object
+                    type: object
+                  volumes:
+                    items:
+                      properties:
+                        createdAt:
+                          format: date-time
+                          type: string
+                        driver:
+                          type: string
+                        id:
+                          type: string
+                        mountpoint:
+                          type: string
+                        name:
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                type: object
+              conditions:
+                items:
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      type: integer
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -41,8 +41,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ktypes "k8s.io/apimachinery/pkg/types"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rossigee/provider-docker/apis/v1beta1"
@@ -280,12 +280,23 @@ func createHTTPClientWithTLS(tlsConfig *v1beta1.TLSConfig, creds *DockerCredenti
 
 // GetProviderConfig returns the ProviderConfig for the given managed resource.
 func GetProviderConfig(ctx context.Context, k8s k8sclient.Client, mg resource.Managed) (*v1beta1.ProviderConfig, error) {
-	if mg.GetProviderConfigReference() == nil {
+	// Get provider config reference from the managed resource's ResourceSpec
+	var pcRef *xpv1.Reference
+
+	// Type assert to extract the ProviderConfigReference from the managed resource
+	switch mr := mg.(type) {
+	case interface{ GetProviderConfigReference() *xpv1.Reference }:
+		pcRef = mr.GetProviderConfigReference()
+	default:
+		return nil, errors.New(errNoProviderConfig)
+	}
+
+	if pcRef == nil {
 		return nil, errors.New(errNoProviderConfig)
 	}
 
 	pc := &v1beta1.ProviderConfig{}
-	if err := k8s.Get(ctx, ktypes.NamespacedName{Name: mg.GetProviderConfigReference().Name}, pc); err != nil {
+	if err := k8s.Get(ctx, ktypes.NamespacedName{Name: pcRef.Name}, pc); err != nil {
 		return nil, errors.Wrap(err, errGetProviderConfig)
 	}
 
@@ -294,16 +305,27 @@ func GetProviderConfig(ctx context.Context, k8s k8sclient.Client, mg resource.Ma
 
 // TrackProviderConfigUsage tracks the usage of a ProviderConfig.
 func TrackProviderConfigUsage(ctx context.Context, k8s k8sclient.Client, mg resource.Managed) error {
-	if mg.GetProviderConfigReference() == nil {
+	// Get provider config reference from the managed resource's ResourceSpec
+	var pcRef *xpv1.Reference
+
+	// Type assert to extract the ProviderConfigReference from the managed resource
+	switch mr := mg.(type) {
+	case interface{ GetProviderConfigReference() *xpv1.Reference }:
+		pcRef = mr.GetProviderConfigReference()
+	default:
+		return errors.New(errNoProviderConfig)
+	}
+
+	if pcRef == nil {
 		return errors.New(errNoProviderConfig)
 	}
 
 	usage := &v1beta1.ProviderConfigUsage{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", mg.GetProviderConfigReference().Name, mg.GetUID()),
+			Name: fmt.Sprintf("%s-%s", pcRef.Name, mg.GetUID()),
 		},
 		ProviderConfigUsage: xpv1.ProviderConfigUsage{
-			ProviderConfigReference: *mg.GetProviderConfigReference(),
+			ProviderConfigReference: *pcRef,
 			ResourceReference: xpv1.TypedReference{
 				APIVersion: mg.GetObjectKind().GroupVersionKind().GroupVersion().String(),
 				Kind:       mg.GetObjectKind().GroupVersionKind().Kind,

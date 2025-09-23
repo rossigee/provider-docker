@@ -14,10 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Generate deepcopy for all types
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile="../hack/boilerplate.go.txt" paths="./..."
+// Generate deep copy methodsets and CRD manifests
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./... output:object:artifacts:config=zz_generated.deepcopy.go
 
-// Generate CRDs for all types
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen crd:headerFile="../hack/boilerplate.go.txt",crdVersions=v1 rbac:headerFile="../hack/boilerplate.go.txt" paths="./..." output:crd:artifacts:config="../package/crds" output:rbac:artifacts:config="../package"
+// Generate CRD manifests
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen crd:maxDescLen=0 paths=./... output:crd:artifacts:config=../package/crds
+
+// Generate managed resource interface methods
+//go:generate go run -tags generate github.com/crossplane/crossplane-tools/cmd/angryjet generate-methodsets --header-file=../hack/boilerplate.go.txt ./...
 
 package apis

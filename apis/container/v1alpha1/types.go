@@ -20,7 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 )
 
 // A ContainerSpec defines the desired state of a Container.
@@ -289,6 +289,11 @@ const (
 	// A block device must exist at the given path.
 	HostPathBlockDevice HostPathType = "BlockDevice"
 )
+
+// HostPathTypePtr returns a pointer to the given HostPathType.
+func HostPathTypePtr(t HostPathType) *HostPathType {
+	return &t
+}
 
 // EmptyDirVolumeSource represents a temporary directory that shares a container's lifetime.
 type EmptyDirVolumeSource struct {
@@ -731,16 +736,6 @@ func (cr *Container) GetProviderConfigReference() *xpv1.Reference {
 // SetProviderConfigReference sets the provider config reference.
 func (cr *Container) SetProviderConfigReference(r *xpv1.Reference) {
 	cr.Spec.ProviderConfigReference = r
-}
-
-// GetPublishConnectionDetailsTo returns the publish connection details to config.
-func (cr *Container) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
-	return cr.Spec.PublishConnectionDetailsTo
-}
-
-// SetPublishConnectionDetailsTo sets the publish connection details to config.
-func (cr *Container) SetPublishConnectionDetailsTo(p *xpv1.PublishConnectionDetailsTo) {
-	cr.Spec.PublishConnectionDetailsTo = p
 }
 
 // GetWriteConnectionSecretToReference returns the write connection secret to reference.

@@ -70,3 +70,11 @@ spec:
   dependsOn:
     - provider: xpkg.upbound.io/crossplane-contrib/provider-kubernetes
       version: ">=v0.14.0"
+
+  # Crossplane v2 features
+  activationPolicy: "Automatic"
+  managedResourceDefinitions:
+    - containers.container.docker.crossplane.io
+    - containers.container.docker.m.crossplane.io
+    - composestacks.compose.docker.crossplane.io
+    - composestacks.compose.docker.m.crossplane.io

@@ -4,14 +4,15 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: containers.container.docker.crossplane.io
+  name: containers.container.docker.m.crossplane.io
 spec:
-  group: container.docker.crossplane.io
+  group: container.docker.m.crossplane.io
   names:
     categories:
     - crossplane
     - managed
     - docker
+    - v2
     kind: Container
     listKind: ContainerList
     plural: containers
@@ -39,7 +40,7 @@ spec:
       name: STATE
       priority: 1
       type: string
-    name: v1alpha1
+    name: v1beta1
     schema:
       openAPIV3Schema:
         properties:

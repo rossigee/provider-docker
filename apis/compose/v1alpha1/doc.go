@@ -14,13 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package features defines feature flags for provider-docker.
-package features
-
-import "github.com/crossplane/crossplane-runtime/v2/pkg/feature"
-
-// Feature flags.
-const (
-	// EnableAlphaManagementPolicies enables alpha management policies feature.
-	EnableAlphaManagementPolicies feature.Flag = "EnableAlphaManagementPolicies"
-)
+// Package v1alpha1 contains the v1alpha1 API for Docker Compose stacks.
+// +kubebuilder:object:generate=true
+// +groupName=compose.docker.crossplane.io
+// +versionName=v1alpha1
+package v1alpha1

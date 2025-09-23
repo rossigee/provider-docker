@@ -35,16 +35,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	xpcontroller "github.com/crossplane/crossplane-runtime/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpcontroller "github.com/crossplane/crossplane-runtime/v2/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
-	"github.com/rossigee/provider-docker/apis/v1beta1"
+	"github.com/rossigee/provider-docker/apis/container/v1beta1"
 	"github.com/rossigee/provider-docker/internal/clients"
 )
 
@@ -78,18 +78,15 @@ func NewContainerConfigBuilder() ContainerConfigBuilder {
 func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 	name := managed.ControllerName(v1alpha1.ContainerGroupKind.Kind)
 
-	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
-
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.ContainerGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
 			kube:   mgr.GetClient(),
-			usage:  resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1beta1.ProviderConfigUsage{}),
+			usage:  resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
 			logger: o.Logger,
 		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
-		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		managed.WithConnectionPublishers(cps...))
+		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -644,11 +641,8 @@ func (b *defaultContainerConfigBuilder) buildSecurityConfiguration(securityConte
 
 	// RunAsNonRoot validation - we can't enforce this at container creation time
 	// but we can add it as a comment or warning in logs
-	if securityContext.RunAsNonRoot != nil && *securityContext.RunAsNonRoot {
-		// This is a validation that should be done by the runtime
-		// Docker will enforce this if the user is set to a non-root user
-		// We don't need to do anything special here
-	}
+	// Docker will enforce this if the user is set to a non-root user
+	_ = securityContext.RunAsNonRoot // We acknowledge the setting but don't need special handling
 
 	return nil
 }
@@ -895,14 +889,10 @@ func (c *external) isUpToDate(cr *v1alpha1.Container, containerInfo *types.Conta
 		}
 	}
 
-	// If all checks pass and container is running, it's up to date
-	if containerInfo.State == nil {
-		if c.logger != nil {
-			c.logger.Debug("Container State is nil, assuming not running")
-		}
-		return false
-	}
-	return containerInfo.State.Running
+	// If all checks pass, the container configuration is up to date
+	// Note: We don't require the container to be running to be considered "up to date"
+	// since that's a separate concern from configuration matching
+	return true
 }
 
 // isEnvironmentUpToDate compares expected environment variables with actual container environment.
@@ -1036,7 +1026,12 @@ func (c *external) buildObservedPorts(containerInfo *types.ContainerJSON) []v1al
 	var ports []v1alpha1.ContainerPort
 
 	if containerInfo.NetworkSettings == nil {
-		return ports
+		return []v1alpha1.ContainerPort{}
+	}
+
+	// If no ports are defined, return empty slice not nil
+	if len(containerInfo.NetworkSettings.Ports) == 0 {
+		return []v1alpha1.ContainerPort{}
 	}
 
 	for port, bindings := range containerInfo.NetworkSettings.Ports {
@@ -1134,6 +1129,127 @@ func (c *external) buildObservedHealth(health *types.Health) *v1alpha1.Container
 }
 
 func isNotFound(err error) bool {
-	// TODO: Implement proper Docker API error checking
-	return false
+	if err == nil {
+		return false
+	}
+
+	// Check for Docker API not found errors
+	errorMessage := strings.ToLower(err.Error())
+	return strings.Contains(errorMessage, "not found") ||
+		strings.Contains(errorMessage, "no such container")
+}
+
+// SetupV1Beta1 creates a controller for the v1beta1 (namespaced) Container resource.
+func SetupV1Beta1(mgr ctrl.Manager, o xpcontroller.Options) error {
+	name := managed.ControllerName(v1beta1.ContainerGroupKind.Kind + "-v1beta1")
+
+	r := managed.NewReconciler(mgr,
+		resource.ManagedKind(v1beta1.ContainerGroupVersionKind),
+		managed.WithExternalConnecter(&v1beta1Connector{
+			kube:   mgr.GetClient(),
+			usage:  resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
+			logger: o.Logger,
+		}),
+		managed.WithLogger(o.Logger.WithValues("controller", name)),
+		managed.WithPollInterval(o.PollInterval),
+		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+	)
+
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		WithOptions(o.ForControllerRuntime()).
+		For(&v1beta1.Container{}).
+		Complete(r)
+}
+
+// v1beta1Connector creates external connectors for v1beta1 Container resources.
+type v1beta1Connector struct {
+	kube   client.Client
+	usage  resource.Tracker
+	logger logging.Logger
+}
+
+// Connect returns an ExternalClient capable of interacting with Docker API.
+func (c *v1beta1Connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
+	cr, ok := mg.(*v1beta1.Container)
+	if !ok {
+		return nil, errors.New(errNotContainer)
+	}
+
+	// Convert v1beta1 to v1alpha1 for business logic compatibility
+	v1alpha1Container := convertV1Beta1ToV1Alpha1(cr)
+
+	// Create Docker client (using the managed resource interface)
+	dockerClient, err := clients.NewDockerClient(ctx, c.kube, v1alpha1Container)
+	if err != nil {
+		return nil, errors.Wrap(err, errNewClient)
+	}
+
+	return &v1beta1External{
+		external: external{
+			client:        dockerClient,
+			configBuilder: &defaultContainerConfigBuilder{},
+			logger:        c.logger,
+		},
+		v1beta1Container:  cr,
+		v1alpha1Container: v1alpha1Container,
+	}, nil
+}
+
+// v1beta1External wraps the v1alpha1 external client for v1beta1 compatibility.
+type v1beta1External struct {
+	external
+	v1beta1Container  *v1beta1.Container
+	v1alpha1Container *v1alpha1.Container
+}
+
+// Observe observes the external resource.
+func (e *v1beta1External) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
+	// Use the v1alpha1 logic but update the v1beta1 resource
+	obs, err := e.external.Observe(ctx, e.v1alpha1Container)
+	if err != nil {
+		return obs, err
+	}
+
+	// Copy status from v1alpha1 to v1beta1
+	if obs.ResourceExists {
+		e.v1beta1Container.Status.AtProvider = v1beta1.ContainerObservation(e.v1alpha1Container.Status.AtProvider)
+		e.v1beta1Container.Status.ResourceStatus = e.v1alpha1Container.Status.ResourceStatus
+	}
+
+	return obs, nil
+}
+
+// Create creates the external resource.
+func (e *v1beta1External) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
+	return e.external.Create(ctx, e.v1alpha1Container)
+}
+
+// Update updates the external resource.
+func (e *v1beta1External) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
+	return e.external.Update(ctx, e.v1alpha1Container)
+}
+
+// Delete deletes the external resource.
+func (e *v1beta1External) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
+	return e.external.Delete(ctx, e.v1alpha1Container)
+}
+
+// convertV1Beta1ToV1Alpha1 converts a v1beta1 Container to v1alpha1 for business logic reuse.
+func convertV1Beta1ToV1Alpha1(v1beta1Container *v1beta1.Container) *v1alpha1.Container {
+	return &v1alpha1.Container{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: v1alpha1.SchemeGroupVersion.String(),
+			Kind:       v1alpha1.ContainerKind,
+		},
+		ObjectMeta: v1beta1Container.ObjectMeta,
+		Spec: v1alpha1.ContainerSpec{
+			ResourceSpec: v1beta1Container.Spec.ResourceSpec,
+			ForProvider:  v1alpha1.ContainerParameters(v1beta1Container.Spec.ForProvider),
+		},
+		Status: v1alpha1.ContainerStatus{
+			ResourceStatus: v1beta1Container.Status.ResourceStatus,
+			AtProvider:     v1alpha1.ContainerObservation(v1beta1Container.Status.AtProvider),
+		},
+	}
 }

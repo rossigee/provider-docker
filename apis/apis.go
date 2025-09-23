@@ -20,7 +20,10 @@ package apis
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
+	composev1alpha1 "github.com/rossigee/provider-docker/apis/compose/v1alpha1"
+	composev1beta1 "github.com/rossigee/provider-docker/apis/compose/v1beta1"
 	containerv1alpha1 "github.com/rossigee/provider-docker/apis/container/v1alpha1"
+	containerv1beta1 "github.com/rossigee/provider-docker/apis/container/v1beta1"
 	"github.com/rossigee/provider-docker/apis/v1beta1"
 )
 
@@ -29,6 +32,9 @@ func init() {
 	AddToSchemes = append(AddToSchemes,
 		v1beta1.SchemeBuilder.AddToScheme,
 		containerv1alpha1.SchemeBuilder.AddToScheme,
+		containerv1beta1.SchemeBuilder.AddToScheme,
+		composev1alpha1.SchemeBuilder.AddToScheme,
+		composev1beta1.SchemeBuilder.AddToScheme,
 	)
 }
 

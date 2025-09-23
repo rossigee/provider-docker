@@ -17,6 +17,7 @@ limitations under the License.
 package container
 
 import (
+	"sort"
 	"testing"
 	"time"
 
@@ -567,6 +568,17 @@ func TestBuildObservedPorts(t *testing.T) {
 			}
 
 			// Sort both slices for comparison since order might vary
+			sortPorts := func(ports []v1alpha1.ContainerPort) {
+				sort.Slice(ports, func(i, j int) bool {
+					if ports[i].PrivatePort != ports[j].PrivatePort {
+						return ports[i].PrivatePort < ports[j].PrivatePort
+					}
+					return ports[i].Type < ports[j].Type
+				})
+			}
+			sortPorts(tt.expected)
+			sortPorts(result)
+
 			if diff := cmp.Diff(tt.expected, result); diff != "" {
 				t.Errorf("buildObservedPorts() mismatch (-want +got):\n%s", diff)
 			}
@@ -576,7 +588,7 @@ func TestBuildObservedPorts(t *testing.T) {
 
 func TestBuildObservedNetworks(t *testing.T) {
 	tests := []struct {
-		name     string
+		name          string
 		containerInfo *types.ContainerJSON
 		expected      map[string]v1alpha1.NetworkInfo
 	}{
@@ -626,7 +638,7 @@ func TestBuildObservedNetworks(t *testing.T) {
 			},
 			expected: map[string]v1alpha1.NetworkInfo{
 				"bridge": {IPAddress: "172.17.0.2", Gateway: "172.17.0.1"},
-				"custom":  {IPAddress: "192.168.1.10", Gateway: "192.168.1.1"},
+				"custom": {IPAddress: "192.168.1.10", Gateway: "192.168.1.1"},
 			},
 		},
 	}

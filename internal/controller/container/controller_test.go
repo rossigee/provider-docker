@@ -33,9 +33,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 
 	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
 	"github.com/rossigee/provider-docker/internal/clients"
@@ -44,21 +44,21 @@ import (
 // Mock DockerClient for testing - implements complete DockerClient interface
 type mockDockerClient struct {
 	// Container operations
-	containerCreateFunc   func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
-	containerStartFunc    func(ctx context.Context, containerID string, options container.StartOptions) error
-	containerStopFunc     func(ctx context.Context, containerID string, options container.StopOptions) error
-	containerRestartFunc  func(ctx context.Context, containerID string, options container.StopOptions) error
-	containerRemoveFunc   func(ctx context.Context, containerID string, options container.RemoveOptions) error
-	containerInspectFunc  func(ctx context.Context, containerID string) (types.ContainerJSON, error)
-	containerListFunc     func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
-	containerLogsFunc     func(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error)
+	containerCreateFunc  func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
+	containerStartFunc   func(ctx context.Context, containerID string, options container.StartOptions) error
+	containerStopFunc    func(ctx context.Context, containerID string, options container.StopOptions) error
+	containerRestartFunc func(ctx context.Context, containerID string, options container.StopOptions) error
+	containerRemoveFunc  func(ctx context.Context, containerID string, options container.RemoveOptions) error
+	containerInspectFunc func(ctx context.Context, containerID string) (types.ContainerJSON, error)
+	containerListFunc    func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
+	containerLogsFunc    func(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error)
 	// containerStatsFunc temporarily disabled
 	// containerStatsFunc    func(ctx context.Context, containerID string, stream bool) (container.StatsResponseReader, error)
-	containerUpdateFunc   func(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error)
-	containerRenameFunc   func(ctx context.Context, containerID, newContainerName string) error
-	containerPauseFunc    func(ctx context.Context, containerID string) error
-	containerUnpauseFunc  func(ctx context.Context, containerID string) error
-	
+	containerUpdateFunc  func(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error)
+	containerRenameFunc  func(ctx context.Context, containerID, newContainerName string) error
+	containerPauseFunc   func(ctx context.Context, containerID string) error
+	containerUnpauseFunc func(ctx context.Context, containerID string) error
+
 	// Close operation
 	closeFunc func() error
 }
@@ -578,7 +578,7 @@ type invalidManagedResource struct {
 	metav1.ObjectMeta
 }
 
-// Implement complete resource.Managed interface 
+// Implement complete resource.Managed interface
 func (i *invalidManagedResource) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return xpv1.Condition{}
 }
@@ -590,17 +590,13 @@ func (i *invalidManagedResource) SetDeletionPolicy(p xpv1.DeletionPolicy) {}
 func (i *invalidManagedResource) GetProviderConfigReference() *xpv1.Reference {
 	return nil
 }
-func (i *invalidManagedResource) GetProviderReference() *xpv1.Reference { return nil }
+func (i *invalidManagedResource) GetProviderReference() *xpv1.Reference        { return nil }
 func (i *invalidManagedResource) SetProviderConfigReference(r *xpv1.Reference) {}
-func (i *invalidManagedResource) SetProviderReference(r *xpv1.Reference) {}
+func (i *invalidManagedResource) SetProviderReference(r *xpv1.Reference)       {}
 func (i *invalidManagedResource) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
 	return nil
 }
 func (i *invalidManagedResource) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {}
-func (i *invalidManagedResource) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
-	return nil
-}
-func (i *invalidManagedResource) SetPublishConnectionDetailsTo(r *xpv1.PublishConnectionDetailsTo) {}
 func (i *invalidManagedResource) GetManagementPolicies() xpv1.ManagementPolicies {
 	return xpv1.ManagementPolicies{}
 }
@@ -610,7 +606,7 @@ func (i *invalidManagedResource) SetManagementPolicies(p xpv1.ManagementPolicies
 func (i *invalidManagedResource) DeepCopyObject() runtime.Object {
 	return &invalidManagedResource{
 		TypeMeta:   i.TypeMeta,
-		ObjectMeta: *i.ObjectMeta.DeepCopy(),
+		ObjectMeta: *i.DeepCopy(),
 	}
 }
 

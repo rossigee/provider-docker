@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 
 	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
 	"github.com/rossigee/provider-docker/apis/v1beta1"
@@ -38,9 +38,9 @@ func TestDockerClientInterface(t *testing.T) {
 
 func TestGetProviderConfig(t *testing.T) {
 	scheme := runtime.NewScheme()
-	v1beta1.SchemeBuilder.AddToScheme(scheme)
-	v1alpha1.SchemeBuilder.AddToScheme(scheme)
-	corev1.AddToScheme(scheme)
+	_ = v1beta1.SchemeBuilder.AddToScheme(scheme)
+	_ = v1alpha1.SchemeBuilder.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
 
 	tests := []struct {
 		name         string
@@ -154,16 +154,16 @@ func TestGetProviderConfig(t *testing.T) {
 
 func TestExtractCredentials(t *testing.T) {
 	scheme := runtime.NewScheme()
-	v1beta1.SchemeBuilder.AddToScheme(scheme)
-	corev1.AddToScheme(scheme)
+	_ = v1beta1.SchemeBuilder.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
 
 	tests := []struct {
-		name         string
-		prepareFunc  func() *fake.ClientBuilder
+		name           string
+		prepareFunc    func() *fake.ClientBuilder
 		providerConfig *v1beta1.ProviderConfig
-		wantError    bool
-		errorMsg     string
-		validateData func(*DockerCredentials) bool
+		wantError      bool
+		errorMsg       string
+		validateData   func(*DockerCredentials) bool
 	}{
 		{
 			name: "ValidSecretCredentials",
@@ -254,9 +254,9 @@ func TestExtractCredentials(t *testing.T) {
 
 func TestNewDockerClient(t *testing.T) {
 	scheme := runtime.NewScheme()
-	v1alpha1.SchemeBuilder.AddToScheme(scheme)
-	v1beta1.SchemeBuilder.AddToScheme(scheme)
-	corev1.AddToScheme(scheme)
+	_ = v1alpha1.SchemeBuilder.AddToScheme(scheme)
+	_ = v1beta1.SchemeBuilder.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
 
 	tests := []struct {
 		name        string
@@ -342,9 +342,9 @@ func TestNewDockerClient(t *testing.T) {
 // Helper functions
 
 func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && 
-		(s == substr || (len(s) > len(substr) && 
-			(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || 
+	return len(s) > 0 && len(substr) > 0 &&
+		(s == substr || (len(s) > len(substr) &&
+			(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
 				containsSubstring(s, substr))))
 }
 

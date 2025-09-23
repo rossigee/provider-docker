@@ -1,0 +1,19 @@
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: ManagedResourceDefinition
+metadata:
+  name: containers.container.docker.crossplane.io
+spec:
+  group: container.docker.crossplane.io
+  version: v1alpha1
+  names:
+    kind: Container
+    plural: containers
+  claimNames:
+    kind: ContainerClaim
+    plural: containerclaims
+  connectionSecretKeys:
+  - containerID
+  - containerName
+  - ipAddress
+  defaultActivationPolicy: "Required"
+  requiredActivationPolicy: "Required"
