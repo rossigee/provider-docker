@@ -4,6 +4,8 @@
 
 # Build
 /provider-docker
+/provider
+/bin/
 *.out
 /package/*.xpkg
 /kubeconfig
