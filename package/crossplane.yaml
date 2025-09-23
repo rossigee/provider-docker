@@ -7,29 +7,33 @@ metadata:
     meta.crossplane.io/source: github.com/rossigee/provider-docker
     meta.crossplane.io/license: Apache-2.0
     meta.crossplane.io/description: |
-      A native Go-based Crossplane provider for managing Docker resources.
-      
+      A v2-native Crossplane provider for managing Docker resources with multi-tenancy support.
+
       This provider offers efficient, direct integration with Docker APIs,
-      eliminating the complexity of Terraform-based compositions while 
+      eliminating the complexity of Terraform-based compositions while
       providing superior performance, reliability, and debugging capabilities.
 
       Features:
-      - Container lifecycle management
-      - Docker volume management  
-      - Docker network management
+      - v2-native architecture with dual-scope API support
+      - Multi-tenant namespace isolation (v1beta1 APIs)
+      - Backward compatible cluster-scoped APIs (v1alpha1)
+      - Container and Compose stack lifecycle management
+      - Docker volume and network management
       - TLS-secured Docker daemon connections
       - Kubernetes Secret-based credential management
+      - Managed Resource Definitions (MRDs) for selective activation
       - Comprehensive resource status reporting
       
     meta.crossplane.io/readme: |
-      # Crossplane Docker Provider
+      # Crossplane Docker Provider (v2-Native)
 
-      This provider enables declarative management of Docker resources through Kubernetes.
-      
+      A v2-native Crossplane provider enabling declarative management of Docker resources
+      through Kubernetes with multi-tenancy support and dual-scope APIs.
+
       ## Installation
-      
+
       Install the provider using the Crossplane CLI or kubectl:
-      
+
       ```bash
       kubectl apply -f - <<EOF
       apiVersion: pkg.crossplane.io/v1
@@ -37,9 +41,19 @@ metadata:
       metadata:
         name: provider-docker
       spec:
-        package: ghcr.io/rossigee/provider-docker:v0.1.0
+        package: ghcr.io/rossigee/provider-docker:v0.2.0
       EOF
       ```
+
+      ## API Versions
+
+      **v1beta1 (Namespaced - Recommended)**:
+      - `container.docker.m.crossplane.io/v1beta1` - Multi-tenant containers
+      - `compose.docker.m.crossplane.io/v1beta1` - Multi-tenant compose stacks
+
+      **v1alpha1 (Cluster-scoped - Backward Compatible)**:
+      - `container.docker.crossplane.io/v1alpha1` - Cluster-scoped containers
+      - `compose.docker.crossplane.io/v1alpha1` - Cluster-scoped compose stacks
       
       ## Configuration
       
