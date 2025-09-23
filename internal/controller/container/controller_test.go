@@ -610,7 +610,295 @@ func (i *invalidManagedResource) DeepCopyObject() runtime.Object {
 	}
 }
 
+// Additional error handling and edge case tests
+
+func TestExternalCreateErrorHandling(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupMock   func() *mockDockerClient
+		setupMG     func() *v1alpha1.Container
+		wantErr     bool
+		errorMsg    string
+	}{
+		{
+			name: "Docker create fails",
+			setupMock: func() *mockDockerClient {
+				return &mockDockerClient{
+					containerCreateFunc: func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
+						return container.CreateResponse{}, errors.New("docker create failed")
+					},
+				}
+			},
+			setupMG: func() *v1alpha1.Container {
+				return &v1alpha1.Container{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
+					Spec: v1alpha1.ContainerSpec{
+						ForProvider: v1alpha1.ContainerParameters{
+							Image: "nginx:latest",
+						},
+					},
+				}
+			},
+			wantErr:  true,
+			errorMsg: "docker create failed",
+		},
+		{
+			name: "Docker start fails",
+			setupMock: func() *mockDockerClient {
+				return &mockDockerClient{
+					containerCreateFunc: func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
+						return container.CreateResponse{ID: "test-id"}, nil
+					},
+					containerStartFunc: func(ctx context.Context, containerID string, options container.StartOptions) error {
+						return errors.New("docker start failed")
+					},
+				}
+			},
+			setupMG: func() *v1alpha1.Container {
+				return &v1alpha1.Container{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
+					Spec: v1alpha1.ContainerSpec{
+						ForProvider: v1alpha1.ContainerParameters{
+							Image: "nginx:latest",
+						},
+					},
+				}
+			},
+			wantErr:  true,
+			errorMsg: "docker start failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := logging.NewNopLogger()
+			ext := &external{
+				client: tt.setupMock(),
+				logger: logger,
+			}
+
+			mg := tt.setupMG()
+			_, err := ext.Create(context.Background(), mg)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr && tt.errorMsg != "" && !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("Create() error = %v, want error containing %v", err, tt.errorMsg)
+			}
+		})
+	}
+}
+
+func TestExternalDeleteErrorHandling(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupMock   func() *mockDockerClient
+		setupMG     func() *v1alpha1.Container
+		wantErr     bool
+		errorMsg    string
+	}{
+		{
+			name: "Docker remove fails",
+			setupMock: func() *mockDockerClient {
+				return &mockDockerClient{
+					containerInspectFunc: func(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+						return types.ContainerJSON{
+							ContainerJSONBase: &types.ContainerJSONBase{
+								ID:    "test-container-id",
+								Name:  "/test-container",
+								State: &types.ContainerState{Status: "running"},
+							},
+						}, nil
+					},
+					containerRemoveFunc: func(ctx context.Context, containerID string, options container.RemoveOptions) error {
+						return errors.New("docker remove failed")
+					},
+				}
+			},
+			setupMG: func() *v1alpha1.Container {
+				return &v1alpha1.Container{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
+					Spec: v1alpha1.ContainerSpec{
+						ForProvider: v1alpha1.ContainerParameters{
+							Image: "nginx:latest",
+						},
+					},
+					Status: v1alpha1.ContainerStatus{
+						AtProvider: v1alpha1.ContainerObservation{
+							ID: "test-container-id",
+						},
+					},
+				}
+			},
+			wantErr:  true,
+			errorMsg: "docker remove failed",
+		},
+		{
+			name: "Container not found - successful delete",
+			setupMock: func() *mockDockerClient {
+				return &mockDockerClient{
+					containerInspectFunc: func(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+						return types.ContainerJSON{}, clients.NewNotFoundError("container", containerID)
+					},
+				}
+			},
+			setupMG: func() *v1alpha1.Container {
+				return &v1alpha1.Container{
+					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
+					Spec: v1alpha1.ContainerSpec{
+						ForProvider: v1alpha1.ContainerParameters{
+							Image: "nginx:latest",
+						},
+					},
+					Status: v1alpha1.ContainerStatus{
+						AtProvider: v1alpha1.ContainerObservation{
+							ID: "missing-container-id",
+						},
+					},
+				}
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := logging.NewNopLogger()
+			ext := &external{
+				client: tt.setupMock(),
+				logger: logger,
+			}
+
+			mg := tt.setupMG()
+			_, err := ext.Delete(context.Background(), mg)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Delete() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr && tt.errorMsg != "" && !strings.Contains(err.Error(), tt.errorMsg) {
+				t.Errorf("Delete() error = %v, want error containing %v", err, tt.errorMsg)
+			}
+		})
+	}
+}
+
+func TestExternalUpdateNotImplemented(t *testing.T) {
+	logger := logging.NewNopLogger()
+	ext := &external{
+		client: &mockDockerClient{},
+		logger: logger,
+	}
+
+	mg := &v1alpha1.Container{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
+		Spec: v1alpha1.ContainerSpec{
+			ForProvider: v1alpha1.ContainerParameters{
+				Image: "nginx:latest",
+			},
+		},
+	}
+
+	_, err := ext.Update(context.Background(), mg)
+
+	if err == nil {
+		t.Errorf("Update() expected error for not implemented, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "not implemented") {
+		t.Errorf("Update() error = %v, want error containing 'not implemented'", err)
+	}
+}
+
+func TestBuildContainerConfigEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		cr      *v1alpha1.Container
+		wantErr bool
+	}{
+		{
+			name: "empty image",
+			cr: &v1alpha1.Container{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
+				Spec: v1alpha1.ContainerSpec{
+					ForProvider: v1alpha1.ContainerParameters{
+						Image: "",
+					},
+				},
+			},
+			wantErr: false, // Should still work, Docker will handle empty image
+		},
+		{
+			name: "complex environment variables",
+			cr: &v1alpha1.Container{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
+				Spec: v1alpha1.ContainerSpec{
+					ForProvider: v1alpha1.ContainerParameters{
+						Image: "nginx:latest",
+						Environment: []v1alpha1.EnvVar{
+							{Name: "EMPTY_VAR", Value: stringPtrCtrl("")},
+							{Name: "SPECIAL_CHARS", Value: stringPtrCtrl("value with spaces and symbols!@#$%")},
+							{Name: "UNICODE", Value: stringPtrCtrl("🐳🔧")},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "complex port mappings",
+			cr: &v1alpha1.Container{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
+				Spec: v1alpha1.ContainerSpec{
+					ForProvider: v1alpha1.ContainerParameters{
+						Image: "nginx:latest",
+						Ports: []v1alpha1.PortSpec{
+							{ContainerPort: 80, Protocol: stringPtrCtrl("tcp")},
+							{ContainerPort: 443, HostPort: int32Ptr(8443), Protocol: stringPtrCtrl("tcp")},
+							{ContainerPort: 53, Protocol: stringPtrCtrl("udp")},
+							{ContainerPort: 8080, HostIP: stringPtrCtrl("127.0.0.1")},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configBuilder := &mockContainerConfigBuilder{}
+			containerConfig, _, _, _, err := configBuilder.BuildContainerConfig(tt.cr)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BuildContainerConfig() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			// Verify basic configuration
+			if !tt.wantErr {
+				if containerConfig.Image != tt.cr.Spec.ForProvider.Image {
+					t.Errorf("BuildContainerConfig() Image = %v, want %v", containerConfig.Image, tt.cr.Spec.ForProvider.Image)
+				}
+			}
+		})
+	}
+}
+
+func TestSecurityContextEdgeCases(t *testing.T) {
+	// TODO: Add security context edge case tests
+}
+
 // Helper functions - use different name to avoid conflicts
 func stringPtrCtrl(s string) *string {
 	return &s
 }
+
+func int32Ptr(i int32) *int32 {
+	return &i
+}
+
