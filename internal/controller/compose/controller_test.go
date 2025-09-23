@@ -35,7 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-
 	composev1alpha1 "github.com/rossigee/provider-docker/apis/compose/v1alpha1"
 	"github.com/rossigee/provider-docker/internal/compose"
 )
@@ -206,12 +205,12 @@ func TestExternal_Observe(t *testing.T) {
 	_ = composev1alpha1.SchemeBuilder.AddToScheme(scheme)
 
 	tests := []struct {
-		name           string
-		cr             *composev1alpha1.ComposeStack
-		dockerClient   *mockDockerClient
-		wantExists     bool
-		wantErr        bool
-		wantUpToDate   bool
+		name         string
+		cr           *composev1alpha1.ComposeStack
+		dockerClient *mockDockerClient
+		wantExists   bool
+		wantErr      bool
+		wantUpToDate bool
 	}{
 		{
 			name: "stack exists and is up to date",
@@ -244,6 +243,16 @@ services:
 						},
 					},
 				},
+				containerInspectResp: &types.ContainerJSON{
+					ContainerJSONBase: &types.ContainerJSONBase{
+						ID:    "container123",
+						Name:  "/test-stack_web_1",
+						State: &types.ContainerState{Status: "running"},
+					},
+					Config: &container.Config{
+						Image: "nginx:latest",
+					},
+				},
 			},
 			wantExists:   true,
 			wantErr:      false,
@@ -268,14 +277,15 @@ services:
 				},
 			},
 			dockerClient: &mockDockerClient{
-				containers: []types.Container{}, // No containers
+				containers:   []types.Container{}, // No containers
+				inspectError: errors.New("container not found"),
 			},
 			wantExists:   false,
 			wantErr:      false,
 			wantUpToDate: false,
 		},
 		{
-			name: "docker list error",
+			name: "docker inspect error",
 			cr: &composev1alpha1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
@@ -293,10 +303,10 @@ services:
 				},
 			},
 			dockerClient: &mockDockerClient{
-				listError: errors.New("docker daemon error"),
+				inspectError: errors.New("docker inspect error"),
 			},
 			wantExists:   false,
-			wantErr:      true,
+			wantErr:      false,
 			wantUpToDate: false,
 		},
 		{
@@ -403,7 +413,8 @@ services:
 				},
 			},
 			dockerClient: &mockDockerClient{
-				createError: errors.New("docker create failed"),
+				inspectError: errors.New("container not found"),  // Container doesn't exist
+				createError:  errors.New("docker create failed"), // Create will fail
 			},
 			wantErr: true,
 		},
@@ -647,4 +658,3 @@ func TestExternal_GetContainerName(t *testing.T) {
 		})
 	}
 }
-

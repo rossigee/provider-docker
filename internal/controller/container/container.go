@@ -219,22 +219,15 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	cr, ok := mg.(*v1alpha1.Container)
+	_, ok := mg.(*v1alpha1.Container)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotContainer)
 	}
 
-	containerID := cr.GetAnnotations()[AnnotationKeyExternalName]
-	if containerID == "" {
-		return managed.ExternalUpdate{}, errors.New("external name not set")
-	}
-
-	c.logger.Debug("Updating container", "container", cr.Name, "id", containerID)
-
-	// NOTE: Container updates require recreation due to Docker API limitations
-	// Most container config changes require stopping and recreating the container
-
-	return managed.ExternalUpdate{}, nil
+	// Container updates are not implemented as they require recreation
+	// due to Docker API limitations. Most container config changes
+	// require stopping and recreating the container.
+	return managed.ExternalUpdate{}, errors.New("container update is not implemented")
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {

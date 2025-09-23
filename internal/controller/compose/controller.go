@@ -178,6 +178,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		if err != nil {
 			// Container doesn't exist
 			observation.ResourceExists = false
+			observation.ResourceUpToDate = false
 			allRunning = false
 			services[container.Name] = composev1alpha1.ServiceStatus{
 				Name:  container.Name,
@@ -188,19 +189,32 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 		// Container exists, check its state
 		status := composev1alpha1.ServiceStatus{
-			Name:        container.Name,
-			ContainerID: &containerInfo.ID,
-			State:       containerInfo.State.Status,
-			Image:       &containerInfo.Config.Image,
+			Name: container.Name,
 		}
 
-		if containerInfo.State.StartedAt != "" {
+		// Safely set container ID
+		if containerInfo.ID != "" {
+			status.ContainerID = &containerInfo.ID
+		}
+
+		// Safely access State and Config with nil checks
+		if containerInfo.State != nil {
+			status.State = containerInfo.State.Status
+		} else {
+			status.State = "unknown"
+		}
+
+		if containerInfo.Config != nil {
+			status.Image = &containerInfo.Config.Image
+		}
+
+		if containerInfo.State != nil && containerInfo.State.StartedAt != "" {
 			if startedAt, err := time.Parse(time.RFC3339Nano, containerInfo.State.StartedAt); err == nil {
 				status.StartedAt = &metav1.Time{Time: startedAt}
 			}
 		}
 
-		if containerInfo.State.Status != "running" {
+		if containerInfo.State == nil || containerInfo.State.Status != "running" {
 			allRunning = false
 			observation.ResourceUpToDate = false
 		}
@@ -267,20 +281,13 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	cr, ok := mg.(*composev1alpha1.ComposeStack)
+	_, ok := mg.(*composev1alpha1.ComposeStack)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotComposeStack)
 	}
 
-	// For now, we implement update as a simple restart
-	// In a full implementation, we would analyze what changed and update accordingly
-	cr.SetConditions(xpv1.Creating())
-
-	// This is a simplified update that recreates containers
-	// A production implementation would be more sophisticated
-	return managed.ExternalUpdate{
-		ConnectionDetails: managed.ConnectionDetails{},
-	}, nil
+	// Update is not yet fully implemented - for now return an error
+	return managed.ExternalUpdate{}, errors.New("update is not yet implemented")
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {

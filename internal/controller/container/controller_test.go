@@ -242,7 +242,8 @@ func (m *mockContainerConfigBuilder) BuildContainerConfig(cr *v1alpha1.Container
 	if m.buildFunc != nil {
 		return m.buildFunc(cr)
 	}
-	return &container.Config{Image: "nginx:latest"}, &container.HostConfig{}, &network.NetworkingConfig{}, &specs.Platform{}, nil
+	// Use the actual image from the container spec (including empty string)
+	return &container.Config{Image: cr.Spec.ForProvider.Image}, &container.HostConfig{}, &network.NetworkingConfig{}, &specs.Platform{}, nil
 }
 
 func TestExternalDisconnect(t *testing.T) {
@@ -614,11 +615,11 @@ func (i *invalidManagedResource) DeepCopyObject() runtime.Object {
 
 func TestExternalCreateErrorHandling(t *testing.T) {
 	tests := []struct {
-		name        string
-		setupMock   func() *mockDockerClient
-		setupMG     func() *v1alpha1.Container
-		wantErr     bool
-		errorMsg    string
+		name      string
+		setupMock func() *mockDockerClient
+		setupMG   func() *v1alpha1.Container
+		wantErr   bool
+		errorMsg  string
 	}{
 		{
 			name: "Docker create fails",
@@ -673,8 +674,9 @@ func TestExternalCreateErrorHandling(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := logging.NewNopLogger()
 			ext := &external{
-				client: tt.setupMock(),
-				logger: logger,
+				client:        tt.setupMock(),
+				configBuilder: &defaultContainerConfigBuilder{},
+				logger:        logger,
 			}
 
 			mg := tt.setupMG()
@@ -694,11 +696,11 @@ func TestExternalCreateErrorHandling(t *testing.T) {
 
 func TestExternalDeleteErrorHandling(t *testing.T) {
 	tests := []struct {
-		name        string
-		setupMock   func() *mockDockerClient
-		setupMG     func() *v1alpha1.Container
-		wantErr     bool
-		errorMsg    string
+		name      string
+		setupMock func() *mockDockerClient
+		setupMG   func() *v1alpha1.Container
+		wantErr   bool
+		errorMsg  string
 	}{
 		{
 			name: "Docker remove fails",
@@ -720,7 +722,12 @@ func TestExternalDeleteErrorHandling(t *testing.T) {
 			},
 			setupMG: func() *v1alpha1.Container {
 				return &v1alpha1.Container{
-					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-container",
+						Annotations: map[string]string{
+							"crossplane.io/external-name": "test-container-id",
+						},
+					},
 					Spec: v1alpha1.ContainerSpec{
 						ForProvider: v1alpha1.ContainerParameters{
 							Image: "nginx:latest",
@@ -768,8 +775,9 @@ func TestExternalDeleteErrorHandling(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := logging.NewNopLogger()
 			ext := &external{
-				client: tt.setupMock(),
-				logger: logger,
+				client:        tt.setupMock(),
+				configBuilder: &defaultContainerConfigBuilder{},
+				logger:        logger,
 			}
 
 			mg := tt.setupMG()
@@ -901,4 +909,3 @@ func stringPtrCtrl(s string) *string {
 func int32Ptr(i int32) *int32 {
 	return &i
 }
-

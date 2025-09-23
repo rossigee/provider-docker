@@ -364,6 +364,11 @@ func ExtractCredentials(ctx context.Context, k8s k8sclient.Client, pc *v1beta1.P
 		return &DockerCredentials{}, nil
 	}
 
+	// Validate credentials source (only when SecretRef is provided)
+	if pc.Spec.Credentials.Source != xpv1.CredentialsSourceSecret && pc.Spec.Credentials.Source != "" {
+		return nil, errors.Errorf("credentials source %s is not currently supported", pc.Spec.Credentials.Source)
+	}
+
 	secret := &corev1.Secret{}
 	secretKey := ktypes.NamespacedName{
 		Namespace: pc.Spec.Credentials.SecretRef.Namespace,
