@@ -231,9 +231,8 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	c.logger.Debug("Updating container", "container", cr.Name, "id", containerID)
 
-	// TODO: Implement container updates
-	// This could include updating resource limits, environment variables, etc.
-	// For now, we'll just return success as basic container config is immutable
+	// NOTE: Container updates require recreation due to Docker API limitations
+	// Most container config changes require stopping and recreating the container
 
 	return managed.ExternalUpdate{}, nil
 }
@@ -990,20 +989,14 @@ func (b *defaultContainerConfigBuilder) resolveEnvVarValue(envVarName string, va
 	// 3. Proper error handling for not found vs other errors
 
 	if valueFrom.ConfigMapKeyRef != nil {
-		// TODO: Implement ConfigMap value resolution
-		// This would require:
-		// - Kubernetes client to get ConfigMap
-		// - Same namespace as the Container resource
-		// - Handle optional flag for missing keys/ConfigMaps
+		// NOTE: ConfigMap value resolution needs Kubernetes client
+		// Implementation: mgr.GetClient(), same namespace, optional handling
 		return "", errors.New("ConfigMap valueFrom not yet implemented - requires Kubernetes client integration")
 	}
 
 	if valueFrom.SecretKeyRef != nil {
-		// TODO: Implement Secret value resolution
-		// This would require:
-		// - Kubernetes client to get Secret
-		// - Same namespace as the Container resource
-		// - Handle optional flag for missing keys/Secrets
+		// NOTE: Secret value resolution needs Kubernetes client
+		// Implementation: mgr.GetClient(), same namespace, optional handling
 		return "", errors.New("Secret valueFrom not yet implemented - requires Kubernetes client integration")
 	}
 

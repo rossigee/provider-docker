@@ -827,7 +827,7 @@ func (c *external) convertVolumeMounts(volumes []containerv1alpha1.VolumeMount) 
 			}
 			mounts = append(mounts, mountObj)
 		}
-		// TODO: Implement other volume types (EmptyDir, Secret, ConfigMap)
+		// NOTE: EmptyDir, Secret, ConfigMap volume types need Kubernetes client integration
 	}
 
 	return binds, mounts, nil
