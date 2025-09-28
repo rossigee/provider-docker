@@ -24,6 +24,8 @@ import (
 
 	"github.com/rossigee/provider-docker/internal/controller/compose"
 	"github.com/rossigee/provider-docker/internal/controller/container"
+	"github.com/rossigee/provider-docker/internal/controller/network"
+	"github.com/rossigee/provider-docker/internal/controller/volume"
 )
 
 // Setup Docker controllers with the manager.
@@ -40,6 +42,16 @@ func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 
 	// Setup compose controllers (v1alpha1 only for now)
 	if err := compose.Setup(mgr, o); err != nil {
+		return err
+	}
+
+	// Setup volume controllers (v1alpha1 cluster-scoped)
+	if err := volume.SetupVolume(mgr, o); err != nil {
+		return err
+	}
+
+	// Setup network controllers (v1alpha1 cluster-scoped)
+	if err := network.SetupNetwork(mgr, o); err != nil {
 		return err
 	}
 
