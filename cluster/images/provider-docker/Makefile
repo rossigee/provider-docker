@@ -1,27 +1,32 @@
-# Image building makefile for provider-docker
+# ====================================================================================
+# Setup Project
 
-# Set image-specific variables
-IMAGE_NAME := provider-docker
+PLATFORMS := linux_amd64 linux_arm64
+include ../../../build/makelib/common.mk
 
-# Include the common image makefile
+# ====================================================================================
+# Options
+IMAGE ?= $(BUILD_REGISTRY)/provider-docker:$(VERSION)
+TARGETOS := $(word 1, $(subst _, ,$(PLATFORM)))
+TARGETARCH := $(word 2, $(subst _, ,$(PLATFORM)))
 include ../../../build/makelib/imagelight.mk
 
-# Override img.build target for Docker buildx
+# ====================================================================================
+# Image Build
 img.build:
-	@echo "Building Docker image $(IMAGE) for platform $(IMAGE_PLATFORMS)"
-	docker buildx build \
-		--platform $(IMAGE_PLATFORMS) \
-		--tag $(IMAGE) \
-		--load \
-		.
+	@$(INFO) docker build $(IMAGE)
+	@$(MAKE) -C ../../.. go.build PLATFORM=$(PLATFORM)
+	@$(MAKE) img.build.shared
+	@$(OK) docker build $(IMAGE)
 
-# Add img.publish target for registry publishing
+img.build.shared:
+	@cp Dockerfile $(IMAGE_TEMP_DIR)
+	@cp -r $(OUTPUT_DIR)/bin/ $(IMAGE_TEMP_DIR)/
+	@docker build $(BUILD_ARGS) --build-arg TARGETOS=$(TARGETOS) --build-arg TARGETARCH=$(TARGETARCH) -t $(IMAGE) $(IMAGE_TEMP_DIR)
+
+# ====================================================================================
+# Image Publish
 img.publish: img.build
-	@echo "Publishing Docker image $(IMAGE) to registry"
-	docker buildx build \
-		--platform $(IMAGE_PLATFORMS) \
-		--tag $(IMAGE) \
-		--push \
-		.
-
-.PHONY: img.build img.publish
+	@$(INFO) docker push $(IMAGE)
+	@docker push $(IMAGE)
+	@$(OK) docker push $(IMAGE)
