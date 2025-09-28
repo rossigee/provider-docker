@@ -15,4 +15,13 @@ img.build:
 		--load \
 		.
 
-.PHONY: img.build
+# Add img.publish target for registry publishing
+img.publish: img.build
+	@echo "Publishing Docker image $(IMAGE) to registry"
+	docker buildx build \
+		--platform $(IMAGE_PLATFORMS) \
+		--tag $(IMAGE) \
+		--push \
+		.
+
+.PHONY: img.build img.publish
