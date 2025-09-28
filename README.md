@@ -15,11 +15,11 @@ A native Go-based Crossplane v2 provider for managing Docker resources with full
 ## Features
 
 - **✅ Container Management**: Create, configure, and manage Docker containers with full lifecycle support
+- **✅ Volume Management**: Docker volume lifecycle and storage management
+- **✅ Network Management**: Custom Docker network creation and configuration
 - **✅ Crossplane v2 Native**: Full dual-scope support (cluster-scoped + namespaced resources)
 - **✅ MRD Support**: Managed Resource Definitions with activation policies
 - **✅ Backward Compatibility**: Legacy v1alpha1 resources continue working
-- **🚧 Volume Management**: Docker volume lifecycle and storage management (planned)
-- **🚧 Network Management**: Custom Docker network creation and configuration (planned)
 - **🚧 Service Management**: Docker Compose-style multi-container services (in development)
 
 ## Container Registry
@@ -263,22 +263,24 @@ This project is licensed under the Apache License 2.0 - see the LICENSE file for
 
 ## Roadmap
 
-### ✅ Completed (v2-native provider)
+### ✅ Completed (v0.3.0 - v2-native provider)
 - [x] Provider scaffolding and foundation
 - [x] Container resource implementation (v1alpha1 + v1beta1)
+- [x] Volume resource implementation (v1alpha1 + v1beta1)
+- [x] Network resource implementation (v1alpha1 + v1beta1)
 - [x] Docker client integration with TLS support
-- [x] Comprehensive test coverage (100% passing)
+- [x] Comprehensive test coverage (all tests passing)
 - [x] Crossplane v2 architecture (MRDs, dual-scope APIs)
 - [x] Full backward compatibility with v1alpha1 resources
 - [x] Build system standardization and quality gates
+- [x] Production-ready linting and CI/CD pipelines
 
-### 🚧 In Progress
+### 🚧 In Progress (v0.4.0)
 - [x] Service resource (Docker Compose compatibility) - 80% complete
 - [ ] Production security hardening and validation
-
-### 📋 Planned
-- [ ] Volume resource implementation
-- [ ] Network resource implementation
 - [ ] Migration tooling from Terraform providers
+
+### 📋 Planned (v0.5.0+)
 - [ ] Performance optimization and benchmarking
 - [ ] Enterprise-grade monitoring and observability
+- [ ] Advanced networking features and service mesh integration
