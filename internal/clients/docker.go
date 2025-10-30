@@ -84,12 +84,12 @@ type DockerClient interface {
 	ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error
 	ContainerRestart(ctx context.Context, containerID string, options container.StopOptions) error
 	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
-	ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error)
-	ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error)
+	ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error)
+	ContainerList(ctx context.Context, options container.ListOptions) ([]container.Summary, error)
 	ContainerLogs(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error)
 	// ContainerStats temporarily disabled due to complex interface mocking
 	// ContainerStats(ctx context.Context, containerID string, stream bool) (container.StatsResponseReader, error)
-	ContainerUpdate(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error)
+	ContainerUpdate(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.UpdateResponse, error)
 	ContainerRename(ctx context.Context, containerID, newContainerName string) error
 	ContainerPause(ctx context.Context, containerID string) error
 	ContainerUnpause(ctx context.Context, containerID string) error
@@ -97,7 +97,7 @@ type DockerClient interface {
 	// Image operations
 	ImagePull(ctx context.Context, refStr string, options image.PullOptions) (io.ReadCloser, error)
 	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error)
+	ImageInspectWithRaw(ctx context.Context, imageID string) (image.InspectResponse, []byte, error)
 	ImageRemove(ctx context.Context, imageID string, options image.RemoveOptions) ([]image.DeleteResponse, error)
 
 	// Volume operations

@@ -49,12 +49,12 @@ type mockDockerClient struct {
 	containerStopFunc    func(ctx context.Context, containerID string, options container.StopOptions) error
 	containerRestartFunc func(ctx context.Context, containerID string, options container.StopOptions) error
 	containerRemoveFunc  func(ctx context.Context, containerID string, options container.RemoveOptions) error
-	containerInspectFunc func(ctx context.Context, containerID string) (types.ContainerJSON, error)
-	containerListFunc    func(ctx context.Context, options container.ListOptions) ([]types.Container, error)
+	containerInspectFunc func(ctx context.Context, containerID string) (container.InspectResponse, error)
+	containerListFunc    func(ctx context.Context, options container.ListOptions) ([]container.Summary, error)
 	containerLogsFunc    func(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error)
 	// containerStatsFunc temporarily disabled
 	// containerStatsFunc    func(ctx context.Context, containerID string, stream bool) (container.StatsResponseReader, error)
-	containerUpdateFunc  func(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error)
+	containerUpdateFunc  func(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.UpdateResponse, error)
 	containerRenameFunc  func(ctx context.Context, containerID, newContainerName string) error
 	containerPauseFunc   func(ctx context.Context, containerID string) error
 	containerUnpauseFunc func(ctx context.Context, containerID string) error
@@ -99,18 +99,18 @@ func (m *mockDockerClient) ContainerRemove(ctx context.Context, containerID stri
 	return nil
 }
 
-func (m *mockDockerClient) ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+func (m *mockDockerClient) ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error) {
 	if m.containerInspectFunc != nil {
 		return m.containerInspectFunc(ctx, containerID)
 	}
-	return types.ContainerJSON{}, nil
+	return container.InspectResponse{}, nil
 }
 
-func (m *mockDockerClient) ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+func (m *mockDockerClient) ContainerList(ctx context.Context, options container.ListOptions) ([]container.Summary, error) {
 	if m.containerListFunc != nil {
 		return m.containerListFunc(ctx, options)
 	}
-	return []types.Container{}, nil
+	return []container.Summary{}, nil
 }
 
 func (m *mockDockerClient) ContainerLogs(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error) {
@@ -125,11 +125,11 @@ func (m *mockDockerClient) ContainerLogs(ctx context.Context, containerID string
 //	return nil, errors.New("stats not implemented in mock")
 // }
 
-func (m *mockDockerClient) ContainerUpdate(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error) {
+func (m *mockDockerClient) ContainerUpdate(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.UpdateResponse, error) {
 	if m.containerUpdateFunc != nil {
 		return m.containerUpdateFunc(ctx, containerID, updateConfig)
 	}
-	return container.ContainerUpdateOKBody{}, nil
+	return container.UpdateResponse{}, nil
 }
 
 func (m *mockDockerClient) ContainerRename(ctx context.Context, containerID, newContainerName string) error {
@@ -162,8 +162,8 @@ func (m *mockDockerClient) ImageList(ctx context.Context, options image.ListOpti
 	return []image.Summary{}, nil
 }
 
-func (m *mockDockerClient) ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error) {
-	return types.ImageInspect{}, []byte{}, nil
+func (m *mockDockerClient) ImageInspectWithRaw(ctx context.Context, imageID string) (image.InspectResponse, []byte, error) {
+	return image.InspectResponse{}, []byte{}, nil
 }
 
 func (m *mockDockerClient) ImageRemove(ctx context.Context, imageID string, options image.RemoveOptions) ([]image.DeleteResponse, error) {
@@ -335,19 +335,16 @@ func TestExternalObserve(t *testing.T) {
 			},
 			mockFunc: func() *mockDockerClient {
 				return &mockDockerClient{
-					containerInspectFunc: func(ctx context.Context, containerID string) (types.ContainerJSON, error) {
-						return types.ContainerJSON{
-							ContainerJSONBase: &types.ContainerJSONBase{
-								ID:    "existing-container-id",
-								Image: "nginx:latest",
-								State: &types.ContainerState{
-									Status: "running",
-								},
+					containerInspectFunc: func(ctx context.Context, containerID string) (container.InspectResponse, error) {
+						return container.InspectResponse{
+							ID:    "existing-container-id",
+							State: &container.State{
+								Status: "running",
 							},
 							Config: &container.Config{
 								Image: "nginx:latest",
 							},
-							NetworkSettings: &types.NetworkSettings{
+							NetworkSettings: &container.NetworkSettings{
 								Networks: map[string]*network.EndpointSettings{},
 							},
 						}, nil
@@ -390,8 +387,8 @@ func TestExternalObserve(t *testing.T) {
 			},
 			mockFunc: func() *mockDockerClient {
 				return &mockDockerClient{
-					containerInspectFunc: func(ctx context.Context, containerID string) (types.ContainerJSON, error) {
-						return types.ContainerJSON{}, clients.NewNotFoundError("container", containerID)
+					containerInspectFunc: func(ctx context.Context, containerID string) (container.InspectResponse, error) {
+						return container.InspectResponse{}, clients.NewNotFoundError("container", containerID)
 					},
 				}
 			},
@@ -424,8 +421,8 @@ func TestExternalObserve(t *testing.T) {
 			},
 			mockFunc: func() *mockDockerClient {
 				return &mockDockerClient{
-					containerInspectFunc: func(ctx context.Context, containerID string) (types.ContainerJSON, error) {
-						return types.ContainerJSON{}, errors.New("API error")
+					containerInspectFunc: func(ctx context.Context, containerID string) (container.InspectResponse, error) {
+						return container.InspectResponse{}, errors.New("API error")
 					},
 				}
 			},
@@ -706,13 +703,11 @@ func TestExternalDeleteErrorHandling(t *testing.T) {
 			name: "Docker remove fails",
 			setupMock: func() *mockDockerClient {
 				return &mockDockerClient{
-					containerInspectFunc: func(ctx context.Context, containerID string) (types.ContainerJSON, error) {
-						return types.ContainerJSON{
-							ContainerJSONBase: &types.ContainerJSONBase{
-								ID:    "test-container-id",
-								Name:  "/test-container",
-								State: &types.ContainerState{Status: "running"},
-							},
+					containerInspectFunc: func(ctx context.Context, containerID string) (container.InspectResponse, error) {
+						return container.InspectResponse{
+							ID:    "test-container-id",
+							Name:  "/test-container",
+							State: &container.State{Status: "running"},
 						}, nil
 					},
 					containerRemoveFunc: func(ctx context.Context, containerID string, options container.RemoveOptions) error {
@@ -747,8 +742,8 @@ func TestExternalDeleteErrorHandling(t *testing.T) {
 			name: "Container not found - successful delete",
 			setupMock: func() *mockDockerClient {
 				return &mockDockerClient{
-					containerInspectFunc: func(ctx context.Context, containerID string) (types.ContainerJSON, error) {
-						return types.ContainerJSON{}, clients.NewNotFoundError("container", containerID)
+					containerInspectFunc: func(ctx context.Context, containerID string) (container.InspectResponse, error) {
+						return container.InspectResponse{}, clients.NewNotFoundError("container", containerID)
 					},
 				}
 			},

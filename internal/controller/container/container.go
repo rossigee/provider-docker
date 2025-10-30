@@ -720,7 +720,7 @@ func parseByteSize(sizeStr string) (int64, error) {
 	return strconv.ParseInt(sizeStr, 10, 64)
 }
 
-func (c *external) updateStatus(cr *v1alpha1.Container, containerInfo *types.ContainerJSON) {
+func (c *external) updateStatus(cr *v1alpha1.Container, containerInfo *container.InspectResponse) {
 	// Initialize the observation
 	observation := v1alpha1.ContainerObservation{}
 
@@ -798,7 +798,7 @@ func (c *external) updateStatus(cr *v1alpha1.Container, containerInfo *types.Con
 	}
 }
 
-func (c *external) isUpToDate(cr *v1alpha1.Container, containerInfo *types.ContainerJSON) bool {
+func (c *external) isUpToDate(cr *v1alpha1.Container, containerInfo *container.InspectResponse) bool {
 	// Check if the container is based on the desired image
 	if containerInfo.Config.Image != cr.Spec.ForProvider.Image {
 		if c.logger != nil {
@@ -1008,7 +1008,7 @@ func (b *defaultContainerConfigBuilder) isEnvVarOptional(valueFrom *v1alpha1.Env
 }
 
 // buildObservedPorts builds the observed port mappings from Docker container info.
-func (c *external) buildObservedPorts(containerInfo *types.ContainerJSON) []v1alpha1.ContainerPort {
+func (c *external) buildObservedPorts(containerInfo *container.InspectResponse) []v1alpha1.ContainerPort {
 	var ports []v1alpha1.ContainerPort
 
 	if containerInfo.NetworkSettings == nil {
@@ -1052,7 +1052,7 @@ func (c *external) buildObservedPorts(containerInfo *types.ContainerJSON) []v1al
 }
 
 // buildObservedNetworks builds the observed network attachments from Docker container info.
-func (c *external) buildObservedNetworks(containerInfo *types.ContainerJSON) map[string]v1alpha1.NetworkInfo {
+func (c *external) buildObservedNetworks(containerInfo *container.InspectResponse) map[string]v1alpha1.NetworkInfo {
 	networks := make(map[string]v1alpha1.NetworkInfo)
 
 	if containerInfo.NetworkSettings == nil {
@@ -1078,7 +1078,7 @@ func (c *external) buildObservedNetworks(containerInfo *types.ContainerJSON) map
 }
 
 // buildObservedHealth builds the observed health status from Docker health info.
-func (c *external) buildObservedHealth(health *types.Health) *v1alpha1.ContainerHealth {
+func (c *external) buildObservedHealth(health *container.Health) *v1alpha1.ContainerHealth {
 	if health == nil {
 		return nil
 	}

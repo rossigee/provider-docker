@@ -37,7 +37,7 @@ func TestUpdateStatus(t *testing.T) {
 	tests := []struct {
 		name             string
 		container        *v1alpha1.Container
-		containerInfo    *types.ContainerJSON
+		containerInfo    *container.InspectResponse
 		expectedStatus   *v1alpha1.ContainerStatus
 		validateFunction func(*v1alpha1.ContainerStatus) bool
 	}{
@@ -51,23 +51,20 @@ func TestUpdateStatus(t *testing.T) {
 					},
 				},
 			},
-			containerInfo: &types.ContainerJSON{
-				ContainerJSONBase: &types.ContainerJSONBase{
-					ID:    "abc123",
-					Name:  "/test-container",
-					Image: "nginx:latest",
-					State: &types.ContainerState{
-						Status:    "running",
-						StartedAt: "2023-01-01T10:00:00Z",
-						Running:   true,
-						Pid:       1234,
-						ExitCode:  0,
-					},
+			containerInfo: &container.InspectResponse{
+				ID:    "abc123",
+				Name:  "/test-container",
+				State: &container.State{
+					Status:    "running",
+					StartedAt: "2023-01-01T10:00:00Z",
+					Running:   true,
+					Pid:       1234,
+					ExitCode:  0,
 				},
 				Config: &container.Config{
 					Image: "nginx:latest",
 				},
-				NetworkSettings: &types.NetworkSettings{
+				NetworkSettings: &container.NetworkSettings{
 					Networks: map[string]*network.EndpointSettings{
 						"bridge": {
 							IPAddress: "172.17.0.2",
@@ -91,20 +88,17 @@ func TestUpdateStatus(t *testing.T) {
 					},
 				},
 			},
-			containerInfo: &types.ContainerJSON{
-				ContainerJSONBase: &types.ContainerJSONBase{
-					ID:    "def456",
-					Name:  "/test-container",
-					Image: "nginx:latest",
-					State: &types.ContainerState{
-						Status:     "exited",
-						StartedAt:  "2023-01-01T10:00:00Z",
-						FinishedAt: "2023-01-01T10:05:00Z",
-						Running:    false,
-						Pid:        0,
-						ExitCode:   1,
-						Error:      "Process exited with code 1",
-					},
+			containerInfo: &container.InspectResponse{
+				ID:    "def456",
+				Name:  "/test-container",
+				State: &container.State{
+					Status:     "exited",
+					StartedAt:  "2023-01-01T10:00:00Z",
+					FinishedAt: "2023-01-01T10:05:00Z",
+					Running:    false,
+					Pid:        0,
+					ExitCode:   1,
+					Error:      "Process exited with code 1",
 				},
 				Config: &container.Config{
 					Image: "nginx:latest",
@@ -130,24 +124,21 @@ func TestUpdateStatus(t *testing.T) {
 					},
 				},
 			},
-			containerInfo: &types.ContainerJSON{
-				ContainerJSONBase: &types.ContainerJSONBase{
-					ID:    "ghi789",
-					Name:  "/test-container",
-					Image: "nginx:latest",
-					State: &types.ContainerState{
-						Status:  "running",
-						Running: true,
-						Health: &types.Health{
-							Status:        "healthy",
-							FailingStreak: 0,
-							Log: []*types.HealthcheckResult{
-								{
-									Start:    time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
-									End:      time.Date(2023, 1, 1, 10, 0, 1, 0, time.UTC),
-									ExitCode: 0,
-									Output:   "OK",
-								},
+			containerInfo: &container.InspectResponse{
+				ID:    "ghi789",
+				Name:  "/test-container",
+				State: &container.State{
+					Status:  "running",
+					Running: true,
+					Health: &container.Health{
+						Status:        "healthy",
+						FailingStreak: 0,
+						Log: []*container.HealthcheckResult{
+							{
+								Start:    time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
+								End:      time.Date(2023, 1, 1, 10, 0, 1, 0, time.UTC),
+								ExitCode: 0,
+								Output:   "OK",
 							},
 						},
 					},
@@ -180,7 +171,7 @@ func TestIsUpToDate(t *testing.T) {
 	tests := []struct {
 		name          string
 		container     *v1alpha1.Container
-		containerInfo *types.ContainerJSON
+		containerInfo *container.InspectResponse
 		expected      bool
 	}{
 		{
@@ -199,11 +190,8 @@ func TestIsUpToDate(t *testing.T) {
 					},
 				},
 			},
-			containerInfo: &types.ContainerJSON{
-				ContainerJSONBase: &types.ContainerJSONBase{
-					ID:    "abc123",
-					Image: "nginx:latest",
-				},
+			containerInfo: &container.InspectResponse{
+				ID: "abc123",
 				Config: &container.Config{
 					Image: "nginx:latest",
 					Env:   []string{"TEST_VAR=test_value"},
@@ -224,11 +212,8 @@ func TestIsUpToDate(t *testing.T) {
 					},
 				},
 			},
-			containerInfo: &types.ContainerJSON{
-				ContainerJSONBase: &types.ContainerJSONBase{
-					ID:    "abc123",
-					Image: "nginx:1.20",
-				},
+			containerInfo: &container.InspectResponse{
+				ID: "abc123",
 				Config: &container.Config{
 					Image: "nginx:1.20",
 				},
@@ -248,11 +233,8 @@ func TestIsUpToDate(t *testing.T) {
 					},
 				},
 			},
-			containerInfo: &types.ContainerJSON{
-				ContainerJSONBase: &types.ContainerJSONBase{
-					ID:    "abc123",
-					Image: "nginx:latest",
-				},
+			containerInfo: &container.InspectResponse{
+				ID: "abc123",
 				Config: &container.Config{
 					Image: "nginx:latest",
 					Env:   []string{"TEST_VAR=old_value"},
@@ -274,11 +256,8 @@ func TestIsUpToDate(t *testing.T) {
 					},
 				},
 			},
-			containerInfo: &types.ContainerJSON{
-				ContainerJSONBase: &types.ContainerJSONBase{
-					ID:    "abc123",
-					Image: "nginx:latest",
-				},
+			containerInfo: &container.InspectResponse{
+				ID: "abc123",
 				Config: &container.Config{
 					Image: "nginx:latest",
 					Labels: map[string]string{
@@ -475,29 +454,25 @@ func TestIsLabelsUpToDate(t *testing.T) {
 func TestBuildObservedPorts(t *testing.T) {
 	tests := []struct {
 		name          string
-		containerInfo *types.ContainerJSON
+		containerInfo *container.InspectResponse
 		expected      []v1alpha1.ContainerPort
 	}{
 		{
 			name: "EmptyPortMap",
-			containerInfo: &types.ContainerJSON{
-				NetworkSettings: &types.NetworkSettings{
-					NetworkSettingsBase: types.NetworkSettingsBase{
-						Ports: nat.PortMap{},
-					},
+			containerInfo: &container.InspectResponse{
+				NetworkSettings: &container.NetworkSettings{
+					Ports: nat.PortMap{},
 				},
 			},
 			expected: []v1alpha1.ContainerPort{},
 		},
 		{
 			name: "SinglePort",
-			containerInfo: &types.ContainerJSON{
-				NetworkSettings: &types.NetworkSettings{
-					NetworkSettingsBase: types.NetworkSettingsBase{
-						Ports: nat.PortMap{
-							"80/tcp": []nat.PortBinding{
-								{HostIP: "0.0.0.0", HostPort: "8080"},
-							},
+			containerInfo: &container.InspectResponse{
+				NetworkSettings: &container.NetworkSettings{
+					Ports: nat.PortMap{
+						"80/tcp": []nat.PortBinding{
+							{HostIP: "0.0.0.0", HostPort: "8080"},
 						},
 					},
 				},
@@ -513,19 +488,17 @@ func TestBuildObservedPorts(t *testing.T) {
 		},
 		{
 			name: "MultiplePorts",
-			containerInfo: &types.ContainerJSON{
-				NetworkSettings: &types.NetworkSettings{
-					NetworkSettingsBase: types.NetworkSettingsBase{
-						Ports: nat.PortMap{
-							"80/tcp": []nat.PortBinding{
-								{HostIP: "0.0.0.0", HostPort: "8080"},
-							},
-							"443/tcp": []nat.PortBinding{
-								{HostIP: "127.0.0.1", HostPort: "8443"},
-							},
-							"53/udp": []nat.PortBinding{
-								{HostIP: "0.0.0.0", HostPort: "5353"},
-							},
+			containerInfo: &container.InspectResponse{
+				NetworkSettings: &container.NetworkSettings{
+					Ports: nat.PortMap{
+						"80/tcp": []nat.PortBinding{
+							{HostIP: "0.0.0.0", HostPort: "8080"},
+						},
+						"443/tcp": []nat.PortBinding{
+							{HostIP: "127.0.0.1", HostPort: "8443"},
+						},
+						"53/udp": []nat.PortBinding{
+							{HostIP: "0.0.0.0", HostPort: "5353"},
 						},
 					},
 				},
@@ -538,14 +511,12 @@ func TestBuildObservedPorts(t *testing.T) {
 		},
 		{
 			name: "MultipleBindingsPerPort",
-			containerInfo: &types.ContainerJSON{
-				NetworkSettings: &types.NetworkSettings{
-					NetworkSettingsBase: types.NetworkSettingsBase{
-						Ports: nat.PortMap{
-							"80/tcp": []nat.PortBinding{
-								{HostIP: "0.0.0.0", HostPort: "8080"},
-								{HostIP: "127.0.0.1", HostPort: "8081"},
-							},
+			containerInfo: &container.InspectResponse{
+				NetworkSettings: &container.NetworkSettings{
+					Ports: nat.PortMap{
+						"80/tcp": []nat.PortBinding{
+							{HostIP: "0.0.0.0", HostPort: "8080"},
+							{HostIP: "127.0.0.1", HostPort: "8081"},
 						},
 					},
 				},
@@ -589,13 +560,13 @@ func TestBuildObservedPorts(t *testing.T) {
 func TestBuildObservedNetworks(t *testing.T) {
 	tests := []struct {
 		name          string
-		containerInfo *types.ContainerJSON
+		containerInfo *container.InspectResponse
 		expected      map[string]v1alpha1.NetworkInfo
 	}{
 		{
 			name: "EmptyNetworks",
-			containerInfo: &types.ContainerJSON{
-				NetworkSettings: &types.NetworkSettings{
+			containerInfo: &container.InspectResponse{
+				NetworkSettings: &container.NetworkSettings{
 					Networks: map[string]*network.EndpointSettings{},
 				},
 			},
@@ -603,8 +574,8 @@ func TestBuildObservedNetworks(t *testing.T) {
 		},
 		{
 			name: "SingleNetwork",
-			containerInfo: &types.ContainerJSON{
-				NetworkSettings: &types.NetworkSettings{
+			containerInfo: &container.InspectResponse{
+				NetworkSettings: &container.NetworkSettings{
 					Networks: map[string]*network.EndpointSettings{
 						"bridge": {
 							IPAddress: "172.17.0.2",
@@ -622,8 +593,8 @@ func TestBuildObservedNetworks(t *testing.T) {
 		},
 		{
 			name: "MultipleNetworks",
-			containerInfo: &types.ContainerJSON{
-				NetworkSettings: &types.NetworkSettings{
+			containerInfo: &container.InspectResponse{
+				NetworkSettings: &container.NetworkSettings{
 					Networks: map[string]*network.EndpointSettings{
 						"bridge": {
 							IPAddress: "172.17.0.2",

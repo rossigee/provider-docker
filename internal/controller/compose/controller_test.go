@@ -41,8 +41,8 @@ import (
 
 // Mock Docker Client
 type mockDockerClient struct {
-	containers           []types.Container
-	containerInspectResp *types.ContainerJSON
+	containers           []container.Summary
+	containerInspectResp *container.InspectResponse
 	containerCreateResp  container.CreateResponse
 	inspectError         error
 	createError          error
@@ -51,21 +51,21 @@ type mockDockerClient struct {
 	listError            error
 }
 
-func (m *mockDockerClient) ContainerList(ctx context.Context, options container.ListOptions) ([]types.Container, error) {
+func (m *mockDockerClient) ContainerList(ctx context.Context, options container.ListOptions) ([]container.Summary, error) {
 	if m.listError != nil {
 		return nil, m.listError
 	}
 	return m.containers, nil
 }
 
-func (m *mockDockerClient) ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+func (m *mockDockerClient) ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error) {
 	if m.inspectError != nil {
-		return types.ContainerJSON{}, m.inspectError
+		return container.InspectResponse{}, m.inspectError
 	}
 	if m.containerInspectResp != nil {
 		return *m.containerInspectResp, nil
 	}
-	return types.ContainerJSON{}, nil
+	return container.InspectResponse{}, nil
 }
 
 func (m *mockDockerClient) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
@@ -96,8 +96,8 @@ func (m *mockDockerClient) ContainerRestart(ctx context.Context, containerID str
 	return nil
 }
 
-func (m *mockDockerClient) ContainerUpdate(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.ContainerUpdateOKBody, error) {
-	return container.ContainerUpdateOKBody{}, nil
+func (m *mockDockerClient) ContainerUpdate(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.UpdateResponse, error) {
+	return container.UpdateResponse{}, nil
 }
 
 func (m *mockDockerClient) ContainerRename(ctx context.Context, containerID, newContainerName string) error {
@@ -121,8 +121,8 @@ func (m *mockDockerClient) ImageList(ctx context.Context, options image.ListOpti
 	return nil, nil
 }
 
-func (m *mockDockerClient) ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error) {
-	return types.ImageInspect{}, nil, nil
+func (m *mockDockerClient) ImageInspectWithRaw(ctx context.Context, imageID string) (image.InspectResponse, []byte, error) {
+	return image.InspectResponse{}, nil, nil
 }
 
 func (m *mockDockerClient) ImageRemove(ctx context.Context, imageID string, options image.RemoveOptions) ([]image.DeleteResponse, error) {
@@ -231,7 +231,7 @@ services:
 				},
 			},
 			dockerClient: &mockDockerClient{
-				containers: []types.Container{
+				containers: []container.Summary{
 					{
 						ID:    "container123",
 						Names: []string{"/test-stack_web_1"},
@@ -243,12 +243,10 @@ services:
 						},
 					},
 				},
-				containerInspectResp: &types.ContainerJSON{
-					ContainerJSONBase: &types.ContainerJSONBase{
-						ID:    "container123",
-						Name:  "/test-stack_web_1",
-						State: &types.ContainerState{Status: "running"},
-					},
+				containerInspectResp: &container.InspectResponse{
+					ID:    "container123",
+					Name:  "/test-stack_web_1",
+					State: &container.State{Status: "running"},
 					Config: &container.Config{
 						Image: "nginx:latest",
 					},
@@ -494,7 +492,7 @@ services:
 				},
 			},
 			dockerClient: &mockDockerClient{
-				containers: []types.Container{
+				containers: []container.Summary{
 					{
 						ID:    "container123",
 						Names: []string{"/test-stack_web_1"},
@@ -527,7 +525,7 @@ services:
 				},
 			},
 			dockerClient: &mockDockerClient{
-				containers: []types.Container{
+				containers: []container.Summary{
 					{
 						ID:    "container123",
 						Names: []string{"/test-stack_web_1"},
