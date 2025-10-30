@@ -78,6 +78,9 @@ submodules:
 go.cachedir:
 	@go env GOCACHE
 
+go.mod.cachedir:
+	@go env GOMODCACHE
+
 # Use the default generate targets from build system
 # The build system already handles code generation properly
 
