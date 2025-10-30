@@ -277,7 +277,7 @@ services:
 				},
 			},
 			dockerClient: &mockDockerClient{
-				containers:   []types.Container{}, // No containers
+				containers:   []container.Summary{}, // No containers
 				inspectError: errors.New("container not found"),
 			},
 			wantExists:   false,
@@ -561,7 +561,7 @@ services:
 				},
 			},
 			dockerClient: &mockDockerClient{
-				containers: []types.Container{}, // No containers
+				containers: []container.Summary{}, // No containers
 			},
 			wantErr: false,
 		},

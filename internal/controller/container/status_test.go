@@ -474,9 +474,7 @@ func TestBuildObservedPorts(t *testing.T) {
 			name: "EmptyPortMap",
 			containerInfo: &container.InspectResponse{
 				NetworkSettings: &container.NetworkSettings{
-					NetworkSettingsBase: container.NetworkSettingsBase{
-						Ports: nat.PortMap{},
-					},
+					Ports: nat.PortMap{},
 				},
 			},
 			expected: []v1alpha1.ContainerPort{},
@@ -485,11 +483,9 @@ func TestBuildObservedPorts(t *testing.T) {
 			name: "SinglePort",
 			containerInfo: &container.InspectResponse{
 				NetworkSettings: &container.NetworkSettings{
-					NetworkSettingsBase: container.NetworkSettingsBase{
-						Ports: nat.PortMap{
-							"80/tcp": []nat.PortBinding{
-								{HostIP: "0.0.0.0", HostPort: "8080"},
-							},
+					Ports: nat.PortMap{
+						"80/tcp": []nat.PortBinding{
+							{HostIP: "0.0.0.0", HostPort: "8080"},
 						},
 					},
 				},
@@ -507,17 +503,15 @@ func TestBuildObservedPorts(t *testing.T) {
 			name: "MultiplePorts",
 			containerInfo: &container.InspectResponse{
 				NetworkSettings: &container.NetworkSettings{
-					NetworkSettingsBase: container.NetworkSettingsBase{
-						Ports: nat.PortMap{
-							"80/tcp": []nat.PortBinding{
-								{HostIP: "0.0.0.0", HostPort: "8080"},
-							},
-							"443/tcp": []nat.PortBinding{
-								{HostIP: "127.0.0.1", HostPort: "8443"},
-							},
-							"53/udp": []nat.PortBinding{
-								{HostIP: "0.0.0.0", HostPort: "5353"},
-							},
+					Ports: nat.PortMap{
+						"80/tcp": []nat.PortBinding{
+							{HostIP: "0.0.0.0", HostPort: "8080"},
+						},
+						"443/tcp": []nat.PortBinding{
+							{HostIP: "127.0.0.1", HostPort: "8443"},
+						},
+						"53/udp": []nat.PortBinding{
+							{HostIP: "0.0.0.0", HostPort: "5353"},
 						},
 					},
 				},
@@ -532,12 +526,10 @@ func TestBuildObservedPorts(t *testing.T) {
 			name: "MultipleBindingsPerPort",
 			containerInfo: &container.InspectResponse{
 				NetworkSettings: &container.NetworkSettings{
-					NetworkSettingsBase: container.NetworkSettingsBase{
-						Ports: nat.PortMap{
-							"80/tcp": []nat.PortBinding{
-								{HostIP: "0.0.0.0", HostPort: "8080"},
-								{HostIP: "127.0.0.1", HostPort: "8081"},
-							},
+					Ports: nat.PortMap{
+						"80/tcp": []nat.PortBinding{
+							{HostIP: "0.0.0.0", HostPort: "8080"},
+							{HostIP: "127.0.0.1", HostPort: "8081"},
 						},
 					},
 				},
