@@ -57,19 +57,40 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
 
+      - name: Build Crossplane Packages
+        run: make xpkg.build
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+
       - name: Verify Build Artifacts
         run: |
-          # Verify provider binary exists (build system uses _output/bin/)
+          # Verify provider binaries exist (build system uses _output/bin/)
           ls -la _output/bin/
-          ls -la _output/bin/linux_amd64/
-          if [ ! -f _output/bin/linux_amd64/provider ]; then
-            echo "ERROR: Provider binary not found!"
-            find . -name "provider" -type f 2>/dev/null || echo "No provider binary found anywhere"
-            exit 1
-          fi
-          ls -la _output/bin/linux_amd64/provider
-          file _output/bin/linux_amd64/provider
-          echo "✅ Provider binary verification successful"
+          for platform in linux_amd64 linux_arm64; do
+            echo "Checking platform: $platform"
+            ls -la _output/bin/$platform/
+            if [ ! -f _output/bin/$platform/provider ]; then
+              echo "ERROR: Provider binary not found for $platform!"
+              exit 1
+            fi
+            ls -la _output/bin/$platform/provider
+            file _output/bin/$platform/provider
+          done
+          echo "✅ Provider binaries verification successful"
+
+          # Verify xpkg files exist
+          ls -la _output/xpkg/
+          for platform in linux_amd64 linux_arm64; do
+            echo "Checking xpkg for platform: $platform"
+            ls -la _output/xpkg/$platform/
+            xpkg_file="_output/xpkg/$platform/provider-docker-${{ steps.version.outputs.version }}.xpkg"
+            if [ ! -f "$xpkg_file" ]; then
+              echo "ERROR: xpkg file not found: $xpkg_file"
+              exit 1
+            fi
+            ls -la "$xpkg_file"
+          done
+          echo "✅ xpkg files verification successful"
 
       # CRITICAL: Build Docker image once, tag it with both version and latest
       - name: Build Docker Image (Version)
