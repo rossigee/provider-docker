@@ -20,9 +20,11 @@ GO111MODULE = on
 -include build/makelib/golang.mk
 
 # Setup Kubernetes tools
-UP_VERSION = v0.28.0
+UP_VERSION = v2.0.2
 UP_CHANNEL = stable
 UPTEST_VERSION = v0.11.1
+# UP refers to the Crossplane CLI (up command)
+UP = $(TOOLS_HOST_DIR)/crossplane-cli-$(UP_VERSION)
 -include build/makelib/k8s_tools.mk
 
 # Setup Images
@@ -93,6 +95,9 @@ run: go.build
 
 # NOTE: we ensure up and crossplane-cli are installed prior to running platform-specific packaging steps in xpkg.build.
 xpkg.build: $(UP) $(CROSSPLANE_CLI)
+
+# UP is an alias for CROSSPLANE_CLI
+$(UP): $(CROSSPLANE_CLI)
 
 .PHONY: submodules run reviewable go.mod.tidy test.unit.safe go.fmt go.vet.limited
 
