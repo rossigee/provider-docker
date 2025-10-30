@@ -338,7 +338,7 @@ func TestExternalObserve(t *testing.T) {
 					containerInspectFunc: func(ctx context.Context, containerID string) (container.InspectResponse, error) {
 						return container.InspectResponse{
 							ContainerJSONBase: &container.ContainerJSONBase{
-								ID:   "existing-container-id",
+								ID: "existing-container-id",
 								State: &container.State{
 									Status: "running",
 								},
@@ -708,8 +708,8 @@ func TestExternalDeleteErrorHandling(t *testing.T) {
 					containerInspectFunc: func(ctx context.Context, containerID string) (container.InspectResponse, error) {
 						return container.InspectResponse{
 							ContainerJSONBase: &container.ContainerJSONBase{
-								ID:   "test-container-id",
-								Name: "/test-container",
+								ID:    "test-container-id",
+								Name:  "/test-container",
 								State: &container.State{Status: "running"},
 							},
 						}, nil

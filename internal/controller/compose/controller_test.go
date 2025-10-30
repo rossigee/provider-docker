@@ -245,8 +245,8 @@ services:
 				},
 				containerInspectResp: &container.InspectResponse{
 					ContainerJSONBase: &container.ContainerJSONBase{
-						ID:   "container123",
-						Name: "/test-stack_web_1",
+						ID:    "container123",
+						Name:  "/test-stack_web_1",
 						State: &container.State{Status: "running"},
 					},
 					Config: &container.Config{
