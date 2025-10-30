@@ -337,9 +337,11 @@ func TestExternalObserve(t *testing.T) {
 				return &mockDockerClient{
 					containerInspectFunc: func(ctx context.Context, containerID string) (container.InspectResponse, error) {
 						return container.InspectResponse{
-							ID:    "existing-container-id",
-							State: &container.State{
-								Status: "running",
+							ContainerJSONBase: &container.ContainerJSONBase{
+								ID:   "existing-container-id",
+								State: &container.State{
+									Status: "running",
+								},
 							},
 							Config: &container.Config{
 								Image: "nginx:latest",
@@ -705,9 +707,11 @@ func TestExternalDeleteErrorHandling(t *testing.T) {
 				return &mockDockerClient{
 					containerInspectFunc: func(ctx context.Context, containerID string) (container.InspectResponse, error) {
 						return container.InspectResponse{
-							ID:    "test-container-id",
-							Name:  "/test-container",
-							State: &container.State{Status: "running"},
+							ContainerJSONBase: &container.ContainerJSONBase{
+								ID:   "test-container-id",
+								Name: "/test-container",
+								State: &container.State{Status: "running"},
+							},
 						}, nil
 					},
 					containerRemoveFunc: func(ctx context.Context, containerID string, options container.RemoveOptions) error {

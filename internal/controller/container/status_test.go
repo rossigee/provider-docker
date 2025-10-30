@@ -52,14 +52,16 @@ func TestUpdateStatus(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ID:    "abc123",
-				Name:  "/test-container",
-				State: &container.State{
-					Status:    "running",
-					StartedAt: "2023-01-01T10:00:00Z",
-					Running:   true,
-					Pid:       1234,
-					ExitCode:  0,
+				ContainerJSONBase: &container.ContainerJSONBase{
+					ID:   "abc123",
+					Name: "/test-container",
+					State: &container.State{
+						Status:    "running",
+						StartedAt: "2023-01-01T10:00:00Z",
+						Running:   true,
+						Pid:       1234,
+						ExitCode:  0,
+					},
 				},
 				Config: &container.Config{
 					Image: "nginx:latest",
@@ -89,16 +91,18 @@ func TestUpdateStatus(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ID:    "def456",
-				Name:  "/test-container",
-				State: &container.State{
-					Status:     "exited",
-					StartedAt:  "2023-01-01T10:00:00Z",
-					FinishedAt: "2023-01-01T10:05:00Z",
-					Running:    false,
-					Pid:        0,
-					ExitCode:   1,
-					Error:      "Process exited with code 1",
+				ContainerJSONBase: &container.ContainerJSONBase{
+					ID:   "def456",
+					Name: "/test-container",
+					State: &container.State{
+						Status:     "exited",
+						StartedAt:  "2023-01-01T10:00:00Z",
+						FinishedAt: "2023-01-01T10:05:00Z",
+						Running:    false,
+						Pid:        0,
+						ExitCode:   1,
+						Error:      "Process exited with code 1",
+					},
 				},
 				Config: &container.Config{
 					Image: "nginx:latest",
@@ -125,20 +129,22 @@ func TestUpdateStatus(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ID:    "ghi789",
-				Name:  "/test-container",
-				State: &container.State{
-					Status:  "running",
-					Running: true,
-					Health: &container.Health{
-						Status:        "healthy",
-						FailingStreak: 0,
-						Log: []*container.HealthcheckResult{
-							{
-								Start:    time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
-								End:      time.Date(2023, 1, 1, 10, 0, 1, 0, time.UTC),
-								ExitCode: 0,
-								Output:   "OK",
+				ContainerJSONBase: &container.ContainerJSONBase{
+					ID:   "ghi789",
+					Name: "/test-container",
+					State: &container.State{
+						Status:  "running",
+						Running: true,
+						Health: &container.Health{
+							Status:        "healthy",
+							FailingStreak: 0,
+							Log: []*container.HealthcheckResult{
+								{
+									Start:    time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
+									End:      time.Date(2023, 1, 1, 10, 0, 1, 0, time.UTC),
+									ExitCode: 0,
+									Output:   "OK",
+								},
 							},
 						},
 					},
@@ -191,7 +197,9 @@ func TestIsUpToDate(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ID: "abc123",
+				ContainerJSONBase: &container.ContainerJSONBase{
+					ID: "abc123",
+				},
 				Config: &container.Config{
 					Image: "nginx:latest",
 					Env:   []string{"TEST_VAR=test_value"},
@@ -213,7 +221,9 @@ func TestIsUpToDate(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ID: "abc123",
+				ContainerJSONBase: &container.ContainerJSONBase{
+					ID: "abc123",
+				},
 				Config: &container.Config{
 					Image: "nginx:1.20",
 				},
@@ -234,7 +244,9 @@ func TestIsUpToDate(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ID: "abc123",
+				ContainerJSONBase: &container.ContainerJSONBase{
+					ID: "abc123",
+				},
 				Config: &container.Config{
 					Image: "nginx:latest",
 					Env:   []string{"TEST_VAR=old_value"},
@@ -257,7 +269,9 @@ func TestIsUpToDate(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ID: "abc123",
+				ContainerJSONBase: &container.ContainerJSONBase{
+					ID: "abc123",
+				},
 				Config: &container.Config{
 					Image: "nginx:latest",
 					Labels: map[string]string{

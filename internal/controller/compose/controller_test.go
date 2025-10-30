@@ -244,9 +244,11 @@ services:
 					},
 				},
 				containerInspectResp: &container.InspectResponse{
-					ID:    "container123",
-					Name:  "/test-stack_web_1",
-					State: &container.State{Status: "running"},
+					ContainerJSONBase: &container.ContainerJSONBase{
+						ID:   "container123",
+						Name: "/test-stack_web_1",
+						State: &container.State{Status: "running"},
+					},
 					Config: &container.Config{
 						Image: "nginx:latest",
 					},
