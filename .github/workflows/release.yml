@@ -53,12 +53,12 @@ jobs:
           password: ${{ secrets.PAT_TOKEN }}
 
       - name: Build
-        run: make build
+        run: make build PLATFORMS="linux_amd64 linux_arm64"
         env:
           VERSION: ${{ steps.version.outputs.version }}
 
       - name: Build Crossplane Packages
-        run: make xpkg.build
+        run: make xpkg.build PLATFORMS="linux_amd64 linux_arm64"
         env:
           VERSION: ${{ steps.version.outputs.version }}
 
