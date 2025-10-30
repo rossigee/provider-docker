@@ -91,8 +91,8 @@ run: go.build
 	@# To see other arguments that can be provided, run the command with --help instead
 	$(GO_OUT_DIR)/provider --debug
 
-# NOTE: we ensure up is installed prior to running platform-specific packaging steps in xpkg.build.
-xpkg.build: $(UP)
+# NOTE: we ensure up and crossplane-cli are installed prior to running platform-specific packaging steps in xpkg.build.
+xpkg.build: $(UP) $(CROSSPLANE_CLI)
 
 .PHONY: submodules run reviewable go.mod.tidy test.unit.safe go.fmt go.vet.limited
 
