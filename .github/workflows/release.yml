@@ -1,12 +1,7 @@
 ---
-# Standardized Release Template for Crossplane Providers
-# Version: 2025-08-14
-#
-# This template handles ALL publishing for releases
-# - Builds from source on tag creation
-# - Creates both version-specific and latest tags from SAME image
-# - Publishes to primary registry (ghcr.io/rossigee)
-# - Creates GitHub release with notes
+# Compatible Release Workflow for Provider-Docker
+# Uses the same build approach as CI workflow for consistency
+# Handles ALL publishing for releases with the working rossigee/build submodule
 
 name: Release
 
@@ -54,14 +49,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.PAT_TOKEN }}
-
-      - name: Install Crossplane CLI
-        run: |
-          # Create the tools directory and install crossplane CLI
-          mkdir -p .cache/tools/linux_x86_64
-          curl -fsSLo .cache/tools/linux_x86_64/crossplane-cli-v2.0.2 \
-            https://releases.crossplane.io/stable/v2.0.2/bin/linux_amd64/crank?source=build
-          chmod +x .cache/tools/linux_x86_64/crossplane-cli-v2.0.2
 
       - name: Build
         run: make build
