@@ -41,7 +41,7 @@ metadata:
       metadata:
         name: provider-docker
       spec:
-        package: ghcr.io/rossigee/provider-docker:v0.3.0
+        package: ghcr.io/rossigee/provider-docker:v0.3.5
       EOF
       ```
 

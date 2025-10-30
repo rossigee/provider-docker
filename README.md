@@ -263,7 +263,7 @@ This project is licensed under the Apache License 2.0 - see the LICENSE file for
 
 ## Roadmap
 
-### ✅ Completed (v0.3.0 - v2-native provider)
+### ✅ Completed (v0.3.5 - v2-native provider)
 - [x] Provider scaffolding and foundation
 - [x] Container resource implementation (v1alpha1 + v1beta1)
 - [x] Volume resource implementation (v1alpha1 + v1beta1)
