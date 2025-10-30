@@ -1,8 +1,7 @@
-# Official Provider-Workflows Release Template
-# Uses crossplane-contrib/provider-workflows with GHCR registry
-# Compatible with rossigee GHCR setup
+# Custom Release Workflow to avoid submodule fetch issues
+# Builds and publishes provider packages directly
 
-name: Release (Official Workflows)
+name: Release
 
 on:
   push:
@@ -15,19 +14,64 @@ on:
         required: true
         type: string
 
+env:
+  GO_VERSION: '1.25.3'
+  REGISTRY: ghcr.io/rossigee
+
 jobs:
-  # Use official provider-workflows with custom registry configuration
   release:
-    uses: crossplane-contrib/provider-workflows/.github/workflows/publish-provider.yml@main
-    with:
-      repository: ${{ github.event.repository.name }}
-      version: ${{ github.event.inputs.version || github.ref_name }}
-      go-version: '1.25.3'
-      registry_org: 'rossigee'  # Publish to ghcr.io/rossigee
-      mirror: false             # Disable mirroring to xpkg.upbound.io
-      cleanup-disk: true
-    secrets:
-      GHCR_PAT: ${{ secrets.PAT_TOKEN }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 1  # Shallow clone to avoid submodule history issues
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Vendor Dependencies
+        run: go mod vendor
+
+      - name: Build Provider
+        run: make build
+
+      - name: Build and Push Docker Image
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          export DOCKER_IMAGE="${{ env.REGISTRY }}/${{ github.event.repository.name }}:${VERSION}"
+
+          # Build and push versioned image
+          make docker.build
+          make docker.push
+
+          # Tag and push latest
+          LATEST_IMAGE="${{ env.REGISTRY }}/${{ github.event.repository.name }}:latest"
+          docker tag ${DOCKER_IMAGE} ${LATEST_IMAGE}
+          docker push ${LATEST_IMAGE}
+
+      - name: Build and Push Crossplane Package
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          export XP_VERSION=${VERSION}
+
+          # Build and push Crossplane package
+          make xpkg.build
+          make xpkg.push
 
   # Add GitHub release creation (preserves your custom feature)
   github-release:
