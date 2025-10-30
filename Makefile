@@ -97,7 +97,6 @@ run: go.build
 xpkg.build: $(UP) $(CROSSPLANE_CLI)
 
 # UP is an alias for CROSSPLANE_CLI
-$(UP): $(CROSSPLANE_CLI)
 
 # Alias for CI workflow compatibility
 docker.build: do.build.images
