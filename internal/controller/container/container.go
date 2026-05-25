@@ -34,7 +34,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	xpcontroller "github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -79,13 +79,13 @@ func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.ContainerGroupVersionKind),
-		managed.WithExternalConnecter(&connector{
+		managed.WithExternalConnector(&connector{
 			kube:   mgr.GetClient(),
-			usage:  resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
+			usage:  resource.ModernTrackerFn(func(ctx context.Context, mg resource.ModernManaged) error { return nil }),
 			logger: o.Logger,
 		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
-		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
+		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))) //nolint:staticcheck
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -98,7 +98,7 @@ func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 // is called.
 type connector struct {
 	kube   client.Client
-	usage  resource.Tracker
+	usage resource.ModernTracker
 	logger logging.Logger
 }
 
@@ -112,7 +112,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.New(errNotContainer)
 	}
 
-	if err := c.usage.Track(ctx, mg); err != nil {
+	if err := c.usage.Track(ctx, mg.(resource.ModernManaged)); err != nil {
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
@@ -1130,14 +1130,14 @@ func SetupV1Beta1(mgr ctrl.Manager, o xpcontroller.Options) error {
 
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1beta1.ContainerGroupVersionKind),
-		managed.WithExternalConnecter(&v1beta1Connector{
+		managed.WithExternalConnector(&v1beta1Connector{
 			kube:   mgr.GetClient(),
-			usage:  resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
+			usage:  resource.ModernTrackerFn(func(ctx context.Context, mg resource.ModernManaged) error { return nil }),
 			logger: o.Logger,
 		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithPollInterval(o.PollInterval),
-		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))), //nolint:staticcheck
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -1150,7 +1150,7 @@ func SetupV1Beta1(mgr ctrl.Manager, o xpcontroller.Options) error {
 // v1beta1Connector creates external connectors for v1beta1 Container resources.
 type v1beta1Connector struct {
 	kube   client.Client
-	usage  resource.Tracker
+	usage resource.ModernTracker
 	logger logging.Logger
 }
 
@@ -1199,7 +1199,7 @@ func (e *v1beta1External) Observe(ctx context.Context, mg resource.Managed) (man
 	// Copy status from v1alpha1 to v1beta1
 	if obs.ResourceExists {
 		e.v1beta1Container.Status.AtProvider = v1beta1.ContainerObservation(e.v1alpha1Container.Status.AtProvider)
-		e.v1beta1Container.Status.ResourceStatus = e.v1alpha1Container.Status.ResourceStatus
+		e.v1beta1Container.Status.ConditionedStatus = e.v1alpha1Container.Status.ConditionedStatus
 	}
 
 	return obs, nil
@@ -1229,11 +1229,11 @@ func convertV1Beta1ToV1Alpha1(v1beta1Container *v1beta1.Container) *v1alpha1.Con
 		},
 		ObjectMeta: v1beta1Container.ObjectMeta,
 		Spec: v1alpha1.ContainerSpec{
-			ResourceSpec: v1beta1Container.Spec.ResourceSpec,
+			ManagedResourceSpec: v1beta1Container.Spec.ManagedResourceSpec,
 			ForProvider:  v1alpha1.ContainerParameters(v1beta1Container.Spec.ForProvider),
 		},
 		Status: v1alpha1.ContainerStatus{
-			ResourceStatus: v1beta1Container.Status.ResourceStatus,
+			ConditionedStatus: v1beta1Container.Status.ConditionedStatus,
 			AtProvider:     v1alpha1.ContainerObservation(v1beta1Container.Status.AtProvider),
 		},
 	}

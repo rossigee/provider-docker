@@ -18,14 +18,16 @@ limitations under the License.
 package meta
 
 import (
+	"maps"
+	"slices"
 	"time"
 
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
 
@@ -61,10 +63,22 @@ const (
 	// the resource will be filtered and thus no further reconcile requests
 	// will be queued for the resource.
 	AnnotationKeyReconciliationPaused = "crossplane.io/paused"
+
+	// AnnotationKeyPollInterval overrides the controller-level poll
+	// interval for a specific resource. The value must be a valid Go
+	// duration string (e.g. "1h", "30m", "24h").
+	AnnotationKeyPollInterval = "crossplane.io/poll-interval"
+
+	// AnnotationKeyReconcileRequestedAt triggers an immediate
+	// reconciliation when its value changes. The value is an opaque
+	// token, typically a timestamp. After handling, the reconciler
+	// records the token in status.lastHandledReconcileAt.
+	AnnotationKeyReconcileRequestedAt = "crossplane.io/reconcile-requested-at"
 )
 
 // ReferenceTo returns an object reference to the supplied object, presumed to
 // be of the supplied group, version, and kind.
+//
 // Deprecated: use a more specific reference type, such as TypedReference or
 // Reference instead of the overly verbose ObjectReference.
 // See https://github.com/crossplane/crossplane-runtime/issues/49
@@ -82,10 +96,10 @@ func ReferenceTo(o metav1.Object, of schema.GroupVersionKind) *corev1.ObjectRefe
 
 // TypedReferenceTo returns a typed object reference to the supplied object,
 // presumed to be of the supplied group, version, and kind.
-func TypedReferenceTo(o metav1.Object, of schema.GroupVersionKind) *xpv1.TypedReference {
+func TypedReferenceTo(o metav1.Object, of schema.GroupVersionKind) *xpv2.TypedReference {
 	v, k := of.ToAPIVersionAndKind()
 
-	return &xpv1.TypedReference{
+	return &xpv2.TypedReference{
 		APIVersion: v,
 		Kind:       k,
 		Name:       o.GetName(),
@@ -94,7 +108,7 @@ func TypedReferenceTo(o metav1.Object, of schema.GroupVersionKind) *xpv1.TypedRe
 }
 
 // AsOwner converts the supplied object reference to an owner reference.
-func AsOwner(r *xpv1.TypedReference) metav1.OwnerReference {
+func AsOwner(r *xpv2.TypedReference) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion: r.APIVersion,
 		Kind:       r.Kind,
@@ -105,7 +119,7 @@ func AsOwner(r *xpv1.TypedReference) metav1.OwnerReference {
 
 // AsController converts the supplied object reference to a controller
 // reference. You may also consider using metav1.NewControllerRef.
-func AsController(r *xpv1.TypedReference) metav1.OwnerReference {
+func AsController(r *xpv2.TypedReference) metav1.OwnerReference {
 	t := true
 	ref := AsOwner(r)
 	ref.Controller = &t
@@ -166,10 +180,8 @@ func AddControllerReference(o metav1.Object, r metav1.OwnerReference) error {
 // AddFinalizer to the supplied Kubernetes object's metadata.
 func AddFinalizer(o metav1.Object, finalizer string) {
 	f := o.GetFinalizers()
-	for _, e := range f {
-		if e == finalizer {
-			return
-		}
+	if slices.Contains(f, finalizer) {
+		return
 	}
 
 	o.SetFinalizers(append(f, finalizer))
@@ -190,13 +202,7 @@ func RemoveFinalizer(o metav1.Object, finalizer string) {
 // FinalizerExists checks whether given finalizer is already set.
 func FinalizerExists(o metav1.Object, finalizer string) bool {
 	f := o.GetFinalizers()
-	for _, e := range f {
-		if e == finalizer {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(f, finalizer)
 }
 
 // AddLabels to the supplied object.
@@ -207,9 +213,7 @@ func AddLabels(o metav1.Object, labels map[string]string) {
 		return
 	}
 
-	for k, v := range labels {
-		l[k] = v
-	}
+	maps.Copy(l, labels)
 
 	o.SetLabels(l)
 }
@@ -236,9 +240,7 @@ func AddAnnotations(o metav1.Object, annotations map[string]string) {
 		return
 	}
 
-	for k, v := range annotations {
-		a[k] = v
-	}
+	maps.Copy(a, annotations)
 
 	o.SetAnnotations(a)
 }
@@ -375,4 +377,34 @@ func ExternalCreateSucceededDuring(o metav1.Object, d time.Duration) bool {
 // annotation set to `true`.
 func IsPaused(o metav1.Object) bool {
 	return o.GetAnnotations()[AnnotationKeyReconciliationPaused] == "true"
+}
+
+// GetPollInterval returns the poll interval override for the given resource,
+// if set via the AnnotationKeyPollInterval annotation.
+func GetPollInterval(o metav1.Object) (time.Duration, bool) {
+	v, ok := o.GetAnnotations()[AnnotationKeyPollInterval]
+	if !ok || v == "" {
+		return 0, false
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d <= 0 {
+		return 0, false
+	}
+	return d, true
+}
+
+// GetReconcileRequest returns the reconcile-requested-at annotation token
+// and true if present and non-empty, or empty string and false otherwise.
+func GetReconcileRequest(o metav1.Object) (string, bool) {
+	v, ok := o.GetAnnotations()[AnnotationKeyReconcileRequestedAt]
+	if !ok || v == "" {
+		return "", false
+	}
+	return v, true
+}
+
+// SetReconcileRequest sets the reconcile-requested-at annotation to the
+// supplied token value.
+func SetReconcileRequest(o metav1.Object, token string) {
+	AddAnnotations(o, map[string]string{AnnotationKeyReconcileRequestedAt: token})
 }

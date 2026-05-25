@@ -19,12 +19,12 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // A ComposeStackSpec defines the desired state of a ComposeStack.
 type ComposeStackSpec struct {
-	xpv1.ResourceSpec `json:",inline"`
+	xpv1.ManagedResourceSpec `json:",inline"`
 
 	// ForProvider contains the provider-specific configuration.
 	ForProvider ComposeStackParameters `json:"forProvider"`
@@ -198,7 +198,7 @@ type ResourceRequirements struct {
 
 // ComposeStackStatus represents the observed state of a ComposeStack.
 type ComposeStackStatus struct {
-	xpv1.ResourceStatus `json:",inline"`
+	xpv1.ConditionedStatus `json:",inline"`
 
 	// AtProvider contains provider-specific status information.
 	AtProvider ComposeStackObservation `json:"atProvider,omitempty"`
@@ -381,15 +381,7 @@ func (cs *ComposeStack) SetConditions(c ...xpv1.Condition) {
 	cs.Status.SetConditions(c...)
 }
 
-// GetDeletionPolicy returns the deletion policy of the resource.
-func (cs *ComposeStack) GetDeletionPolicy() xpv1.DeletionPolicy {
-	return cs.Spec.DeletionPolicy
-}
 
-// SetDeletionPolicy sets the deletion policy of the resource.
-func (cs *ComposeStack) SetDeletionPolicy(p xpv1.DeletionPolicy) {
-	cs.Spec.DeletionPolicy = p
-}
 
 // GetManagementPolicies returns the management policies of the resource.
 func (cs *ComposeStack) GetManagementPolicies() xpv1.ManagementPolicies {
@@ -402,22 +394,22 @@ func (cs *ComposeStack) SetManagementPolicies(p xpv1.ManagementPolicies) {
 }
 
 // GetProviderConfigReference returns the provider config reference.
-func (cs *ComposeStack) GetProviderConfigReference() *xpv1.Reference {
+func (cs *ComposeStack) GetProviderConfigReference() *xpv1.ProviderConfigReference {
 	return cs.Spec.ProviderConfigReference
 }
 
 // SetProviderConfigReference sets the provider config reference.
-func (cs *ComposeStack) SetProviderConfigReference(r *xpv1.Reference) {
+func (cs *ComposeStack) SetProviderConfigReference(r *xpv1.ProviderConfigReference) {
 	cs.Spec.ProviderConfigReference = r
 }
 
 // GetWriteConnectionSecretToReference returns the write connection secret to reference.
-func (cs *ComposeStack) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
+func (cs *ComposeStack) GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference {
 	return cs.Spec.WriteConnectionSecretToReference
 }
 
 // SetWriteConnectionSecretToReference sets the write connection secret to reference.
-func (cs *ComposeStack) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
+func (cs *ComposeStack) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
 	cs.Spec.WriteConnectionSecretToReference = r
 }
 

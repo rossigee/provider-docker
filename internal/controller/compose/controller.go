@@ -35,7 +35,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
@@ -73,14 +73,14 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(composev1alpha1.ComposeStackGroupVersionKind),
-		managed.WithExternalConnecter(&connector{
+		managed.WithExternalConnector(&connector{
 			kube:         mgr.GetClient(),
-			usage:        resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
+			usage:        resource.ModernTrackerFn(func(ctx context.Context, mg resource.ModernManaged) error { return nil }),
 			newServiceFn: dockerclients.NewDockerClient,
 		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithPollInterval(pollInterval),
-		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
+		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))) //nolint:staticcheck
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -94,7 +94,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 // is called.
 type connector struct {
 	kube         client.Client
-	usage        resource.Tracker
+	usage resource.ModernTracker
 	newServiceFn func(context.Context, client.Client, resource.Managed) (dockerclients.DockerClient, error)
 }
 
@@ -109,7 +109,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.New(errNotComposeStack)
 	}
 
-	if err := c.usage.Track(ctx, mg); err != nil {
+	if err := c.usage.Track(ctx, mg.(resource.ModernManaged)); err != nil {
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 

@@ -20,12 +20,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
 )
 
 // A ContainerSpec defines the desired state of a Container.
 type ContainerSpec struct {
-	xpv1.ResourceSpec `json:",inline"`
+	xpv1.ManagedResourceSpec `json:",inline"`
 
 	// ForProvider contains the provider-specific configuration.
 	ForProvider ContainerParameters `json:"forProvider"`
@@ -522,7 +522,7 @@ type HealthCheck struct {
 
 // A ContainerStatus represents the observed state of a Container.
 type ContainerStatus struct {
-	xpv1.ResourceStatus `json:",inline"`
+	xpv1.ConditionedStatus `json:",inline"`
 
 	// AtProvider contains the observed state of the Container.
 	AtProvider ContainerObservation `json:"atProvider,omitempty"`
@@ -708,15 +708,7 @@ func (cr *Container) SetConditions(c ...xpv1.Condition) {
 	cr.Status.SetConditions(c...)
 }
 
-// GetDeletionPolicy returns the deletion policy of the resource.
-func (cr *Container) GetDeletionPolicy() xpv1.DeletionPolicy {
-	return cr.Spec.DeletionPolicy
-}
 
-// SetDeletionPolicy sets the deletion policy of the resource.
-func (cr *Container) SetDeletionPolicy(p xpv1.DeletionPolicy) {
-	cr.Spec.DeletionPolicy = p
-}
 
 // GetManagementPolicies returns the management policies of the resource.
 func (cr *Container) GetManagementPolicies() xpv1.ManagementPolicies {
@@ -729,22 +721,22 @@ func (cr *Container) SetManagementPolicies(p xpv1.ManagementPolicies) {
 }
 
 // GetProviderConfigReference returns the provider config reference.
-func (cr *Container) GetProviderConfigReference() *xpv1.Reference {
+func (cr *Container) GetProviderConfigReference() *xpv1.ProviderConfigReference {
 	return cr.Spec.ProviderConfigReference
 }
 
 // SetProviderConfigReference sets the provider config reference.
-func (cr *Container) SetProviderConfigReference(r *xpv1.Reference) {
+func (cr *Container) SetProviderConfigReference(r *xpv1.ProviderConfigReference) {
 	cr.Spec.ProviderConfigReference = r
 }
 
 // GetWriteConnectionSecretToReference returns the write connection secret to reference.
-func (cr *Container) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
+func (cr *Container) GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference {
 	return cr.Spec.WriteConnectionSecretToReference
 }
 
 // SetWriteConnectionSecretToReference sets the write connection secret to reference.
-func (cr *Container) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
+func (cr *Container) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
 	cr.Spec.WriteConnectionSecretToReference = r
 }
 
