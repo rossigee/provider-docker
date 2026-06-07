@@ -52,7 +52,7 @@ github.com/containerd/errdefs/pkg/errhttp
 github.com/containerd/errdefs/pkg/internal/cause
 # github.com/containerd/log v0.1.0
 ## explicit; go 1.20
-# github.com/crossplane/crossplane-runtime/v2 v2.3.1
+# github.com/crossplane/crossplane-runtime/v2 v2.4.0-rc.0 => github.com/rossigee/crossplane-runtime/v2 v2.4.0-rc.0.0.20260522024312-ccb404ad65f6
 ## explicit; go 1.25.9
 github.com/crossplane/crossplane-runtime/v2/apis/changelogs/proto/v1alpha1
 github.com/crossplane/crossplane-runtime/v2/pkg/conditions
@@ -1129,3 +1129,4 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
+# github.com/crossplane/crossplane-runtime/v2 => github.com/rossigee/crossplane-runtime/v2 v2.4.0-rc.0.0.20260522024312-ccb404ad65f6
