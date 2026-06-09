@@ -27,7 +27,7 @@ import (
 
 // A ComposeStackSpec defines the desired state of a ComposeStack.
 type ComposeStackSpec struct {
-	xpv1.ResourceSpec `json:",inline"`
+	xpv1.ManagedResourceSpec `json:",inline"`
 
 	// ForProvider contains the provider-specific configuration.
 	ForProvider ComposeStackParameters `json:"forProvider"`
@@ -40,7 +40,7 @@ type ComposeStackParameters v1alpha1.ComposeStackParameters
 
 // A ComposeStackStatus represents the observed state of a ComposeStack.
 type ComposeStackStatus struct {
-	xpv1.ResourceStatus `json:",inline"`
+	xpv1.ManagedResourceStatus `json:",inline"`
 
 	// AtProvider contains the observed state of the ComposeStack.
 	AtProvider ComposeStackObservation `json:"atProvider,omitempty"`

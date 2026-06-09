@@ -25,7 +25,7 @@ import (
 
 // A ContainerSpec defines the desired state of a Container.
 type ContainerSpec struct {
-	xpv1.ResourceSpec `json:",inline"`
+	xpv1.ManagedResourceSpec `json:",inline"`
 
 	// ForProvider contains the provider-specific configuration.
 	ForProvider ContainerParameters `json:"forProvider"`
@@ -522,7 +522,7 @@ type HealthCheck struct {
 
 // A ContainerStatus represents the observed state of a Container.
 type ContainerStatus struct {
-	xpv1.ResourceStatus `json:",inline"`
+	xpv1.ManagedResourceStatus `json:",inline"`
 
 	// AtProvider contains the observed state of the Container.
 	AtProvider ContainerObservation `json:"atProvider,omitempty"`

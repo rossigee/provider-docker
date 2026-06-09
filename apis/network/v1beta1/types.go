@@ -27,7 +27,7 @@ import (
 
 // A NetworkSpec defines the desired state of a Network.
 type NetworkSpec struct {
-	xpv1.ResourceSpec `json:",inline"`
+	xpv1.ManagedResourceSpec `json:",inline"`
 
 	// ForProvider contains the provider-specific configuration.
 	ForProvider NetworkParameters `json:"forProvider"`
@@ -40,7 +40,7 @@ type NetworkParameters v1alpha1.NetworkParameters
 
 // A NetworkStatus represents the observed state of a Network.
 type NetworkStatus struct {
-	xpv1.ResourceStatus `json:",inline"`
+	xpv1.ManagedResourceStatus `json:",inline"`
 
 	// AtProvider contains the observed state of the Network.
 	AtProvider NetworkObservation `json:"atProvider,omitempty"`

@@ -24,7 +24,7 @@ import (
 
 // A VolumeSpec defines the desired state of a Volume.
 type VolumeSpec struct {
-	xpv1.ResourceSpec `json:",inline"`
+	xpv1.ManagedResourceSpec `json:",inline"`
 
 	// ForProvider contains the provider-specific configuration.
 	ForProvider VolumeParameters `json:"forProvider"`
@@ -55,7 +55,7 @@ type VolumeParameters struct {
 
 // A VolumeStatus represents the observed state of a Volume.
 type VolumeStatus struct {
-	xpv1.ResourceStatus `json:",inline"`
+	xpv1.ManagedResourceStatus `json:",inline"`
 
 	// AtProvider contains the observed state of the Volume.
 	AtProvider VolumeObservation `json:"atProvider,omitempty"`
