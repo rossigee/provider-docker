@@ -718,6 +718,16 @@ func (cr *Container) SetManagementPolicies(p xpv1.ManagementPolicies) {
 	cr.Spec.ManagementPolicies = p
 }
 
+// GetProviderConfigReference returns the ProviderConfigReference field.
+func (cr *Container) GetProviderConfigReference() *xpv1.ProviderConfigReference {
+	return cr.Spec.ProviderConfigReference
+}
+
+// SetProviderConfigReference sets the ProviderConfigReference field.
+func (cr *Container) SetProviderConfigReference(p *xpv1.ProviderConfigReference) {
+	cr.Spec.ProviderConfigReference = p
+}
+
 
 
 

@@ -281,11 +281,11 @@ func createHTTPClientWithTLS(tlsConfig *v1beta1.TLSConfig, creds *DockerCredenti
 // GetProviderConfig returns the ProviderConfig for the given managed resource.
 func GetProviderConfig(ctx context.Context, k8s k8sclient.Client, mg resource.Managed) (*v1beta1.ProviderConfig, error) {
 	// Get provider config reference from the managed resource's ResourceSpec
-	var pcRef *xpv1.Reference
+	var pcRef *xpv1.ProviderConfigReference
 
 	// Type assert to extract the ProviderConfigReference from the managed resource
 	switch mr := mg.(type) {
-	case interface{ GetProviderConfigReference() *xpv1.Reference }:
+	case interface{ GetProviderConfigReference() *xpv1.ProviderConfigReference }:
 		pcRef = mr.GetProviderConfigReference()
 	default:
 		return nil, errors.New(errNoProviderConfig)
@@ -306,11 +306,11 @@ func GetProviderConfig(ctx context.Context, k8s k8sclient.Client, mg resource.Ma
 // TrackProviderConfigUsage tracks the usage of a ProviderConfig.
 func TrackProviderConfigUsage(ctx context.Context, k8s k8sclient.Client, mg resource.Managed) error {
 	// Get provider config reference from the managed resource's ResourceSpec
-	var pcRef *xpv1.Reference
+	var pcRef *xpv1.ProviderConfigReference
 
 	// Type assert to extract the ProviderConfigReference from the managed resource
 	switch mr := mg.(type) {
-	case interface{ GetProviderConfigReference() *xpv1.Reference }:
+	case interface{ GetProviderConfigReference() *xpv1.ProviderConfigReference }:
 		pcRef = mr.GetProviderConfigReference()
 	default:
 		return errors.New(errNoProviderConfig)
@@ -325,7 +325,7 @@ func TrackProviderConfigUsage(ctx context.Context, k8s k8sclient.Client, mg reso
 			Name: fmt.Sprintf("%s-%s", pcRef.Name, mg.GetUID()),
 		},
 		ProviderConfigUsage: xpv1.ProviderConfigUsage{
-			ProviderConfigReference: *pcRef,
+			ProviderConfigReference: xpv1.Reference{Name: pcRef.Name},
 			ResourceReference: xpv1.TypedReference{
 				APIVersion: mg.GetObjectKind().GroupVersionKind().GroupVersion().String(),
 				Kind:       mg.GetObjectKind().GroupVersionKind().Kind,
