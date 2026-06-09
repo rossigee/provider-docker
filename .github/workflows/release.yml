@@ -50,7 +50,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.PAT_TOKEN }}
+          password: ${{ github.token }}
 
       - name: Build
         run: make build BUILD_PLATFORMS="linux_amd64 linux_arm64"
@@ -178,7 +178,7 @@ jobs:
 #    - Ensures reproducible builds
 #
 # 5. PROPER AUTHENTICATION
-#    - Uses PAT_TOKEN for registry authentication
+#    - Uses github.token for registry authentication
 #    - Proper permissions for package publishing
 #    - GitHub release creation
 #
