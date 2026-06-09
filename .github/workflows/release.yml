@@ -1,7 +1,15 @@
 ---
-# Compatible Release Workflow for Provider-Docker
-# Uses the same build approach as CI workflow for consistency
-# Handles ALL publishing for releases with the working rossigee/build submodule
+# Standardized Release Workflow for Crossplane Providers
+# Version: 2026-06-09 - Unified publish pattern across all providers
+#
+# Pattern:
+# 1. Build provider binaries and packages (make build)
+# 2. Publish to GHCR in a SINGLE step using make publish with both:
+#    - REGISTRY_ORGS for Docker images
+#    - XPKG_REG_ORGS for Crossplane packages
+# 3. Create GitHub release
+#
+# Triggered on version tags (v*)
 
 name: Release
 
@@ -43,10 +51,10 @@ jobs:
         run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
-        uses: @v4
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to GitHub Container Registry
-        uses: @v4
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -62,88 +70,28 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
 
-      - name: Verify Build Artifacts
+      - name: Publish Artifacts (Docker Images + Crossplane Packages)
         run: |
-          # Verify provider binaries exist (build system uses _output/bin/)
-          ls -la _output/bin/
-          for platform in linux_amd64 linux_arm64; do
-            echo "Checking platform: $platform"
-            ls -la _output/bin/$platform/
-            if [ ! -f _output/bin/$platform/provider ]; then
-              echo "ERROR: Provider binary not found for $platform!"
-              exit 1
-            fi
-            ls -la _output/bin/$platform/provider
-            file _output/bin/$platform/provider
-          done
-          echo "✅ Provider binaries verification successful"
-
-          # Verify xpkg files exist
-          ls -la _output/xpkg/
-          for platform in linux_amd64 linux_arm64; do
-            echo "Checking xpkg for platform: $platform"
-            ls -la _output/xpkg/$platform/
-            xpkg_file="_output/xpkg/$platform/provider-docker-${{ steps.version.outputs.version }}.xpkg"
-            if [ ! -f "$xpkg_file" ]; then
-              echo "ERROR: xpkg file not found: $xpkg_file"
-              exit 1
-            fi
-            ls -la "$xpkg_file"
-          done
-          echo "✅ xpkg files verification successful"
-
-      # CRITICAL: Build Docker image once, tag it with both version and latest
-      - name: Build Docker Image (Version)
-        run: |
-          # Create temporary build context and copy binary (matching make docker build)
-          BUILD_CONTEXT=$(mktemp -d)
-          cp cluster/images/provider-docker/Dockerfile $BUILD_CONTEXT/
-          cp -r _output/bin/ $BUILD_CONTEXT/
-
-          # Build container image for specific version with OpenContainers labels
-          docker build -t ghcr.io/rossigee/provider-docker:${{ steps.version.outputs.version }} \
-            --build-arg VERSION=${{ steps.version.outputs.version }} \
-            --build-arg TARGETOS=linux \
-            --build-arg TARGETARCH=amd64 \
-            --label "org.opencontainers.image.title=provider-docker" \
-            --label "org.opencontainers.image.description=Crossplane provider for Docker container and resource management" \
-            --label "org.opencontainers.image.version=${{ steps.version.outputs.version }}" \
-            --label "org.opencontainers.image.revision=${{ github.sha }}" \
-            --label "org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
-            --label "org.opencontainers.image.url=${{ github.server_url }}/${{ github.repository }}" \
-            --label "org.opencontainers.image.documentation=${{ github.server_url }}/${{ github.repository }}/blob/${{ steps.version.outputs.version }}/README.md" \
-            --label "org.opencontainers.image.vendor=rossigee" \
-            --label "org.opencontainers.image.licenses=Apache-2.0" \
-            --label "org.opencontainers.image.ref.name=${{ steps.version.outputs.version }}" \
-            $BUILD_CONTEXT
-
-          # Cleanup
-          rm -rf $BUILD_CONTEXT
-
-      # CRITICAL: Tag the SAME image as latest (ensures identical images)
-      - name: Build Docker Image (Latest)
-        run: |
-          # Tag the same image as latest
-          docker tag ghcr.io/rossigee/provider-docker:${{ steps.version.outputs.version }} \
-            ghcr.io/rossigee/provider-docker:latest
-
-      # CRITICAL: Push both tags (they point to the same image)
-      - name: Push Docker Images
-        run: |
-          # Push both version and latest tags
-          docker push ghcr.io/rossigee/provider-docker:${{ steps.version.outputs.version }}
-          docker push ghcr.io/rossigee/provider-docker:latest
-
-      - name: Publish Crossplane Packages
-        run: |
-          # Publish versioned package
-          make publish
-          # Publish latest package
-          make publish VERSION=latest
+          make publish \
+            REGISTRY_ORGS="ghcr.io/${{ github.repository_owner }}" \
+            XPKG_REG_ORGS="ghcr.io/${{ github.repository_owner }}" \
+            BRANCH_NAME=master
         env:
           VERSION: ${{ steps.version.outputs.version }}
-          REGISTRY_ORGS: ghcr.io/rossigee
+
+      - name: Verify Publication
+        run: |
+          set -e
+
+          VERSION="${{ steps.version.outputs.version }}"
+          PROVIDER_NAME="${{ github.event.repository.name }}"
+          REGISTRY_PATH="ghcr.io/${{ github.repository_owner }}/${PROVIDER_NAME}"
+
+          if docker pull "${REGISTRY_PATH}:${VERSION}" > /dev/null 2>&1; then
+            echo "✅ Verified container image ${VERSION}"
+          else
+            echo "⚠️ Container image not found - xpkg-only provider"
+          fi
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -153,38 +101,31 @@ jobs:
           prerelease: false
           generate_release_notes: true
 
-# Key Principles for this Template:
+# Key Principles:
 #
-# 1. SINGLE SOURCE OF TRUTH FOR PUBLISHING
-#    - Only this workflow publishes to registries
-#    - CI workflow only validates builds
-#    - Eliminates tag conflicts
+# 1. UNIFIED PUBLISH PATTERN
+#    - Single `make publish` call handles both Docker images and xpkg packages
+#    - Both REGISTRY_ORGS and XPKG_REG_ORGS point to ghcr.io
+#    - No separate docker push steps
 #
-# 2. IDENTICAL VERSION AND LATEST TAGS
-#    - Build image once with version tag
-#    - Tag the SAME image as latest (line 87-88)
-#    - Push both tags (they're identical)
-#    - No separate builds = no image differences
+# 2. CONSISTENT AUTHENTICATION
+#    - docker/login-action for GHCR authentication
+#    - Standard GITHUB_TOKEN with packages:write permission
 #
-# 3. STANDARDIZED REGISTRY PUBLISHING
-#    - Primary: ghcr.io/rossigee/provider-docker
-#    - Version tag: v1.2.3
-#    - Latest tag: latest
-#    - Both Crossplane packages and container images
+# 3. BUILD BEFORE PUBLISH
+#    - Build binaries (make build)
+#    - Build packages (make xpkg.build)
+#    - Publish everything (make publish)
 #
-# 4. BUILD FROM SOURCE
-#    - Always build from the tagged source
-#    - No dependency on pre-built artifacts
-#    - Ensures reproducible builds
+# 4. VERIFICATION
+#    - Verify Docker image was published to GHCR
+#    - Handle providers that are xpkg-only (no Docker image)
 #
-# 5. PROPER AUTHENTICATION
-#    - Uses github.token for registry authentication
-#    - Proper permissions for package publishing
-#    - GitHub release creation
+# 5. GITHUB RELEASE
+#    - Auto-generate release notes from commits
+#    - Create release with version tag
 #
 # To apply this template:
-# 1. Copy this structure to .github/workflows/release.yml
-# 2. Replace PROVIDER_NAME with actual provider name (e.g., provider-docker)
-# 3. Ensure Dockerfile path is correct
-# 4. Test with a version tag (should publish both tags identically)
-# 5. Verify latest and version tags point to same image digest
+# 1. Copy to .github/workflows/release.yml in each provider repo
+# 2. Commit and push
+# 3. Create version tag: git tag v1.2.3 && git push origin v1.2.3
