@@ -58,7 +58,7 @@ func SetupNetwork(mgr ctrl.Manager, o controller.Options) error {
 
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(networkv1alpha1.NetworkGroupVersionKind),
-		managed.WithExternalConnecter(&connector{
+		managed.WithExternalConnector(&connector{
 			kube:   mgr.GetClient(),
 			usage:  resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
 			logger: o.Logger,

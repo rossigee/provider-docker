@@ -59,7 +59,7 @@ func SetupVolume(mgr ctrl.Manager, o controller.Options) error {
 
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(volumev1alpha1.VolumeGroupVersionKind),
-		managed.WithExternalConnecter(&connector{
+		managed.WithExternalConnector(&connector{
 			kube:   mgr.GetClient(),
 			usage:  resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
 			logger: o.Logger,

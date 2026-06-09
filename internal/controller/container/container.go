@@ -79,7 +79,7 @@ func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1alpha1.ContainerGroupVersionKind),
-		managed.WithExternalConnecter(&connector{
+		managed.WithExternalConnector(&connector{
 			kube:   mgr.GetClient(),
 			usage:  resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
 			logger: o.Logger,
@@ -1130,7 +1130,7 @@ func SetupV1Beta1(mgr ctrl.Manager, o xpcontroller.Options) error {
 
 	r := managed.NewReconciler(mgr,
 		resource.ManagedKind(v1beta1.ContainerGroupVersionKind),
-		managed.WithExternalConnecter(&v1beta1Connector{
+		managed.WithExternalConnector(&v1beta1Connector{
 			kube:   mgr.GetClient(),
 			usage:  resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
 			logger: o.Logger,
