@@ -1453,7 +1453,7 @@ func TestBuildContainerConfig(t *testing.T) {
 						Name: "test-container",
 					},
 					Spec: v1alpha1.ContainerSpec{
-						ResourceSpec: xpv1.ResourceSpec{},
+						ManagedResourceSpec: xpv1.ManagedResourceSpec{},
 						ForProvider: v1alpha1.ContainerParameters{
 							Image:   "nginx:latest",
 							Command: []string{"/bin/sh"},
@@ -1477,7 +1477,7 @@ func TestBuildContainerConfig(t *testing.T) {
 						Name: "test-container",
 					},
 					Spec: v1alpha1.ContainerSpec{
-						ResourceSpec: xpv1.ResourceSpec{},
+						ManagedResourceSpec: xpv1.ManagedResourceSpec{},
 						ForProvider: v1alpha1.ContainerParameters{
 							Image: "nginx:latest",
 							Ports: []v1alpha1.PortSpec{
@@ -1504,7 +1504,7 @@ func TestBuildContainerConfig(t *testing.T) {
 						Name: "test-container",
 					},
 					Spec: v1alpha1.ContainerSpec{
-						ResourceSpec: xpv1.ResourceSpec{},
+						ManagedResourceSpec: xpv1.ManagedResourceSpec{},
 						ForProvider: v1alpha1.ContainerParameters{
 							Image: "nginx:latest",
 							Environment: []v1alpha1.EnvVar{

@@ -68,8 +68,8 @@ func TestGetProviderConfig(t *testing.T) {
 				return &v1alpha1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
 					Spec: v1alpha1.ContainerSpec{
-						ResourceSpec: xpv1.ResourceSpec{
-							ProviderConfigReference: &xpv1.Reference{Name: "test-config"},
+						ManagedResourceSpec: xpv1.ManagedResourceSpec{
+							ProviderConfigReference: &xpv1.ProviderConfigReference{Name: "test-config"},
 						},
 					},
 				}
@@ -88,8 +88,8 @@ func TestGetProviderConfig(t *testing.T) {
 				return &v1alpha1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
 					Spec: v1alpha1.ContainerSpec{
-						ResourceSpec: xpv1.ResourceSpec{
-							ProviderConfigReference: &xpv1.Reference{Name: "nonexistent"},
+						ManagedResourceSpec: xpv1.ManagedResourceSpec{
+							ProviderConfigReference: &xpv1.ProviderConfigReference{Name: "nonexistent"},
 						},
 					},
 				}
@@ -106,7 +106,7 @@ func TestGetProviderConfig(t *testing.T) {
 				return &v1alpha1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
 					Spec: v1alpha1.ContainerSpec{
-						ResourceSpec: xpv1.ResourceSpec{
+						ManagedResourceSpec: xpv1.ManagedResourceSpec{
 							// No ProviderConfigReference
 						},
 					},
@@ -281,8 +281,8 @@ func TestNewDockerClient(t *testing.T) {
 				return &v1alpha1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
 					Spec: v1alpha1.ContainerSpec{
-						ResourceSpec: xpv1.ResourceSpec{
-							ProviderConfigReference: &xpv1.Reference{Name: "test-config"},
+						ManagedResourceSpec: xpv1.ManagedResourceSpec{
+							ProviderConfigReference: &xpv1.ProviderConfigReference{Name: "test-config"},
 						},
 					},
 				}
@@ -298,8 +298,8 @@ func TestNewDockerClient(t *testing.T) {
 				return &v1alpha1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
 					Spec: v1alpha1.ContainerSpec{
-						ResourceSpec: xpv1.ResourceSpec{
-							ProviderConfigReference: &xpv1.Reference{Name: "nonexistent"},
+						ManagedResourceSpec: xpv1.ManagedResourceSpec{
+							ProviderConfigReference: &xpv1.ProviderConfigReference{Name: "nonexistent"},
 						},
 					},
 				}
@@ -388,8 +388,8 @@ func TestTrackProviderConfigUsage(t *testing.T) {
 						Namespace: "default",
 					},
 					Spec: v1alpha1.ContainerSpec{
-						ResourceSpec: xpv1.ResourceSpec{
-							ProviderConfigReference: &xpv1.Reference{Name: "test-config"},
+						ManagedResourceSpec: xpv1.ManagedResourceSpec{
+							ProviderConfigReference: &xpv1.ProviderConfigReference{Name: "test-config"},
 						},
 					},
 				}
@@ -408,7 +408,7 @@ func TestTrackProviderConfigUsage(t *testing.T) {
 						Namespace: "default",
 					},
 					Spec: v1alpha1.ContainerSpec{
-						ResourceSpec: xpv1.ResourceSpec{
+						ManagedResourceSpec: xpv1.ManagedResourceSpec{
 							// No ProviderConfigReference
 						},
 					},

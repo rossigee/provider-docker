@@ -372,54 +372,31 @@ type ComposeStack struct {
 }
 
 // GetCondition returns the condition for the given ConditionType.
-func (cs *ComposeStack) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
-	return cs.Status.GetCondition(ct)
+func (cr *ComposeStack) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return cr.Status.GetCondition(ct)
 }
 
 // SetConditions sets the conditions on the resource.
-func (cs *ComposeStack) SetConditions(c ...xpv1.Condition) {
-	cs.Status.SetConditions(c...)
-}
-
-// GetDeletionPolicy returns the deletion policy of the resource.
-func (cs *ComposeStack) GetDeletionPolicy() xpv1.DeletionPolicy {
-	return cs.Spec.DeletionPolicy
-}
-
-// SetDeletionPolicy sets the deletion policy of the resource.
-func (cs *ComposeStack) SetDeletionPolicy(p xpv1.DeletionPolicy) {
-	cs.Spec.DeletionPolicy = p
+func (cr *ComposeStack) SetConditions(c ...xpv1.Condition) {
+	cr.Status.SetConditions(c...)
 }
 
 // GetManagementPolicies returns the management policies of the resource.
-func (cs *ComposeStack) GetManagementPolicies() xpv1.ManagementPolicies {
-	return cs.Spec.ManagementPolicies
+func (cr *ComposeStack) GetManagementPolicies() xpv1.ManagementPolicies {
+	return cr.Spec.ManagementPolicies
 }
 
 // SetManagementPolicies sets the management policies of the resource.
-func (cs *ComposeStack) SetManagementPolicies(p xpv1.ManagementPolicies) {
-	cs.Spec.ManagementPolicies = p
+func (cr *ComposeStack) SetManagementPolicies(p xpv1.ManagementPolicies) {
+	cr.Spec.ManagementPolicies = p
 }
 
-// GetProviderConfigReference returns the provider config reference.
-func (cs *ComposeStack) GetProviderConfigReference() *xpv1.Reference {
-	return cs.Spec.ProviderConfigReference
-}
 
-// SetProviderConfigReference sets the provider config reference.
-func (cs *ComposeStack) SetProviderConfigReference(r *xpv1.Reference) {
-	cs.Spec.ProviderConfigReference = r
-}
 
-// GetWriteConnectionSecretToReference returns the write connection secret to reference.
-func (cs *ComposeStack) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
-	return cs.Spec.WriteConnectionSecretToReference
-}
 
-// SetWriteConnectionSecretToReference sets the write connection secret to reference.
-func (cs *ComposeStack) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
-	cs.Spec.WriteConnectionSecretToReference = r
-}
+
+
+
 
 // +kubebuilder:object:root=true
 

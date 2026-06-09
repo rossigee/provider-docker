@@ -81,16 +81,6 @@ func (cr *ComposeStack) SetConditions(c ...xpv1.Condition) {
 	cr.Status.SetConditions(c...)
 }
 
-// GetDeletionPolicy returns the deletion policy of the resource.
-func (cr *ComposeStack) GetDeletionPolicy() xpv1.DeletionPolicy {
-	return cr.Spec.DeletionPolicy
-}
-
-// SetDeletionPolicy sets the deletion policy of the resource.
-func (cr *ComposeStack) SetDeletionPolicy(p xpv1.DeletionPolicy) {
-	cr.Spec.DeletionPolicy = p
-}
-
 // GetManagementPolicies returns the management policies of the resource.
 func (cr *ComposeStack) GetManagementPolicies() xpv1.ManagementPolicies {
 	return cr.Spec.ManagementPolicies
@@ -101,25 +91,12 @@ func (cr *ComposeStack) SetManagementPolicies(p xpv1.ManagementPolicies) {
 	cr.Spec.ManagementPolicies = p
 }
 
-// GetProviderConfigReference returns the provider config reference.
-func (cr *ComposeStack) GetProviderConfigReference() *xpv1.Reference {
-	return cr.Spec.ProviderConfigReference
-}
 
-// SetProviderConfigReference sets the provider config reference.
-func (cr *ComposeStack) SetProviderConfigReference(r *xpv1.Reference) {
-	cr.Spec.ProviderConfigReference = r
-}
 
-// GetWriteConnectionSecretToReference returns the write connection secret to reference.
-func (cr *ComposeStack) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
-	return cr.Spec.WriteConnectionSecretToReference
-}
 
-// SetWriteConnectionSecretToReference sets the write connection secret to reference.
-func (cr *ComposeStack) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
-	cr.Spec.WriteConnectionSecretToReference = r
-}
+
+
+
 
 // +kubebuilder:object:root=true
 

@@ -1199,7 +1199,6 @@ func (e *v1beta1External) Observe(ctx context.Context, mg resource.Managed) (man
 	// Copy status from v1alpha1 to v1beta1
 	if obs.ResourceExists {
 		e.v1beta1Container.Status.AtProvider = v1beta1.ContainerObservation(e.v1alpha1Container.Status.AtProvider)
-		e.v1beta1Container.Status.ResourceStatus = e.v1alpha1Container.Status.ResourceStatus
 	}
 
 	return obs, nil
@@ -1229,12 +1228,12 @@ func convertV1Beta1ToV1Alpha1(v1beta1Container *v1beta1.Container) *v1alpha1.Con
 		},
 		ObjectMeta: v1beta1Container.ObjectMeta,
 		Spec: v1alpha1.ContainerSpec{
-			ResourceSpec: v1beta1Container.Spec.ResourceSpec,
-			ForProvider:  v1alpha1.ContainerParameters(v1beta1Container.Spec.ForProvider),
+			ManagedResourceSpec: v1beta1Container.Spec.ManagedResourceSpec,
+			ForProvider:         v1alpha1.ContainerParameters(v1beta1Container.Spec.ForProvider),
 		},
 		Status: v1alpha1.ContainerStatus{
-			ResourceStatus: v1beta1Container.Status.ResourceStatus,
-			AtProvider:     v1alpha1.ContainerObservation(v1beta1Container.Status.AtProvider),
+			ManagedResourceStatus: v1beta1Container.Status.ManagedResourceStatus,
+			AtProvider:           v1alpha1.ContainerObservation(v1beta1Container.Status.AtProvider),
 		},
 	}
 }
