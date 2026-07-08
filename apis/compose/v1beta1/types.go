@@ -91,13 +91,6 @@ func (cr *ComposeStack) SetManagementPolicies(p xpv1.ManagementPolicies) {
 	cr.Spec.ManagementPolicies = p
 }
 
-
-
-
-
-
-
-
 // +kubebuilder:object:root=true
 
 // ComposeStackList contains a list of ComposeStack.

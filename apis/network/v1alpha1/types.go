@@ -214,13 +214,6 @@ func (cr *Network) SetManagementPolicies(p xpv1.ManagementPolicies) {
 	cr.Spec.ManagementPolicies = p
 }
 
-
-
-
-
-
-
-
 // +kubebuilder:object:root=true
 
 // NetworkList contains a list of Network.

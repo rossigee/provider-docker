@@ -34,12 +34,12 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	xpcontroller "github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
 
 	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
 	"github.com/rossigee/provider-docker/apis/container/v1beta1"
@@ -1232,7 +1232,7 @@ func convertV1Beta1ToV1Alpha1(v1beta1Container *v1beta1.Container) *v1alpha1.Con
 		},
 		Status: v1alpha1.ContainerStatus{
 			ManagedResourceStatus: v1beta1Container.Status.ManagedResourceStatus,
-			AtProvider:           v1alpha1.ContainerObservation(v1beta1Container.Status.AtProvider),
+			AtProvider:            v1alpha1.ContainerObservation(v1beta1Container.Status.AtProvider),
 		},
 	}
 }

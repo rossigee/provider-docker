@@ -41,8 +41,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ktypes "k8s.io/apimachinery/pkg/types"
 
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rossigee/provider-docker/apis/v1beta1"
@@ -285,7 +285,9 @@ func GetProviderConfig(ctx context.Context, k8s k8sclient.Client, mg resource.Ma
 
 	// Type assert to extract the ProviderConfigReference from the managed resource
 	switch mr := mg.(type) {
-	case interface{ GetProviderConfigReference() *xpv1.ProviderConfigReference }:
+	case interface {
+		GetProviderConfigReference() *xpv1.ProviderConfigReference
+	}:
 		pcRef = mr.GetProviderConfigReference()
 	default:
 		return nil, errors.New(errNoProviderConfig)
@@ -310,7 +312,9 @@ func TrackProviderConfigUsage(ctx context.Context, k8s k8sclient.Client, mg reso
 
 	// Type assert to extract the ProviderConfigReference from the managed resource
 	switch mr := mg.(type) {
-	case interface{ GetProviderConfigReference() *xpv1.ProviderConfigReference }:
+	case interface {
+		GetProviderConfigReference() *xpv1.ProviderConfigReference
+	}:
 		pcRef = mr.GetProviderConfigReference()
 	default:
 		return errors.New(errNoProviderConfig)

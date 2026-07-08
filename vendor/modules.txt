@@ -52,7 +52,7 @@ github.com/containerd/errdefs/pkg/errhttp
 github.com/containerd/errdefs/pkg/internal/cause
 # github.com/containerd/log v0.1.0
 ## explicit; go 1.20
-# github.com/crossplane/crossplane-runtime/v2 v2.3.2
+# github.com/crossplane/crossplane-runtime/v2 v2.4.0-rc.0 => github.com/rossigee/crossplane-runtime/v2 v2.4.0-rc.0.0.20260708064937-d99a640775a8
 ## explicit; go 1.25.9
 github.com/crossplane/crossplane-runtime/v2/apis/changelogs/proto/v1alpha1
 github.com/crossplane/crossplane-runtime/v2/pkg/conditions
@@ -68,7 +68,7 @@ github.com/crossplane/crossplane-runtime/v2/pkg/resource
 github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured
 github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/reference
 github.com/crossplane/crossplane-runtime/v2/pkg/statemetrics
-# github.com/crossplane/crossplane-tools v0.0.0-20250731192036-00d407d8b7ec
+# github.com/crossplane/crossplane-tools v0.0.0-20251017183449-dd4517244339
 ## explicit; go 1.23.0
 github.com/crossplane/crossplane-tools/cmd/angryjet
 github.com/crossplane/crossplane-tools/internal/comments
@@ -77,8 +77,8 @@ github.com/crossplane/crossplane-tools/internal/generate
 github.com/crossplane/crossplane-tools/internal/match
 github.com/crossplane/crossplane-tools/internal/method
 github.com/crossplane/crossplane-tools/internal/types
-# github.com/crossplane/crossplane/apis/v2 v2.3.1
-## explicit; go 1.25.10
+# github.com/crossplane/crossplane/apis/v2 v2.4.0-rc.0
+## explicit; go 1.25.9
 github.com/crossplane/crossplane/apis/v2/core/v2
 # github.com/dave/jennifer v1.7.1
 ## explicit; go 1.20
@@ -1128,3 +1128,4 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
+# github.com/crossplane/crossplane-runtime/v2 => github.com/rossigee/crossplane-runtime/v2 v2.4.0-rc.0.0.20260708064937-d99a640775a8

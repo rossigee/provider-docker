@@ -168,12 +168,10 @@ type ProviderConfigUsage struct {
 	xpv1.ProviderConfigUsage `json:",inline"`
 }
 
-
 // GetResourceReference returns the resource reference.
 func (pcu *ProviderConfigUsage) GetResourceReference() xpv1.TypedReference {
 	return pcu.ResourceReference
 }
-
 
 // SetResourceReference sets the resource reference.
 func (pcu *ProviderConfigUsage) SetResourceReference(r xpv1.TypedReference) {

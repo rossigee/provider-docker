@@ -91,13 +91,6 @@ func (cr *Container) SetManagementPolicies(p xpv1.ManagementPolicies) {
 	cr.Spec.ManagementPolicies = p
 }
 
-
-
-
-
-
-
-
 // +kubebuilder:object:root=true
 
 // ContainerList contains a list of Container.

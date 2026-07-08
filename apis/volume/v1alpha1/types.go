@@ -136,13 +136,6 @@ func (cr *Volume) SetManagementPolicies(p xpv1.ManagementPolicies) {
 	cr.Spec.ManagementPolicies = p
 }
 
-
-
-
-
-
-
-
 // +kubebuilder:object:root=true
 
 // VolumeList contains a list of Volume.

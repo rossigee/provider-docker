@@ -728,13 +728,6 @@ func (cr *Container) SetProviderConfigReference(p *xpv1.ProviderConfigReference)
 	cr.Spec.ProviderConfigReference = p
 }
 
-
-
-
-
-
-
-
 // +kubebuilder:object:root=true
 
 // ContainerList contains a list of Container.
