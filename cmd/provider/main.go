@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -36,6 +37,7 @@ import (
 	"github.com/rossigee/provider-docker/apis"
 	"github.com/rossigee/provider-docker/internal/controller"
 	"github.com/rossigee/provider-docker/internal/features"
+	"github.com/rossigee/provider-docker/internal/tracing"
 	"github.com/rossigee/provider-docker/internal/version"
 )
 
@@ -55,6 +57,12 @@ func main() {
 
 	zl := zap.New(zap.UseDevMode(*debug))
 	log := logging.NewLogrLogger(zl.WithName("provider-docker"))
+
+	shutdownTracing := tracing.Init("provider-docker")
+	defer shutdownTracing(context.Background())
+
+	shutdownTracing(context.Background())
+
 	if *debug {
 		// The controller-runtime runs with a no-op logger by default. It is
 		// *very* verbose even at info level, so we only provide it a real
