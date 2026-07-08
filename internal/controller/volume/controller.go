@@ -18,26 +18,23 @@ package volume
 
 import (
 	"context"
-	"strings"
-	"time"
-
-	"github.com/docker/docker/api/types/volume"
-	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
-
-	volumev1alpha1 "github.com/rossigee/provider-docker/apis/volume/v1alpha1"
+	"github.com/crossplane/crossplane/apis/v2/core/v2"
+	"github.com/docker/docker/api/types/volume"
+	"github.com/pkg/errors"
+	"github.com/rossigee/provider-docker/apis/volume/v1alpha1"
 	"github.com/rossigee/provider-docker/internal/clients"
 	"github.com/rossigee/provider-docker/internal/tracing"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
+	"time"
 )
 
 const (

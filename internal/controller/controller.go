@@ -18,14 +18,12 @@ limitations under the License.
 package controller
 
 import (
-	ctrl "sigs.k8s.io/controller-runtime"
-
-	xpcontroller "github.com/crossplane/crossplane-runtime/v2/pkg/controller"
-
+	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/rossigee/provider-docker/internal/controller/compose"
 	"github.com/rossigee/provider-docker/internal/controller/container"
 	"github.com/rossigee/provider-docker/internal/controller/network"
 	"github.com/rossigee/provider-docker/internal/controller/volume"
+	"sigs.k8s.io/controller-runtime"
 )
 
 // Setup Docker controllers with the manager.

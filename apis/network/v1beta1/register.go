@@ -17,17 +17,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
+	"network.docker.m.crossplane.io"
 	"reflect"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	"sigs.k8s.io/controller-runtime/pkg/scheme"
-)
-
-// Package type metadata.
-const (
-	Group   = "network.docker.m.crossplane.io"
-	Version = "v1beta1"
+	"v1beta1"
 )
 
 var (
@@ -35,7 +28,7 @@ var (
 	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
-	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion} //nolint:staticcheck
+	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 )
 
 // Network type metadata.
@@ -46,6 +39,6 @@ var (
 	NetworkGroupVersionKind = SchemeGroupVersion.WithKind(NetworkKind)
 )
 
-func init() {
-	SchemeBuilder.Register(&Network{}, &NetworkList{})
+func addKnownTypes(s *runtime.Scheme) error {
+	return nil
 }

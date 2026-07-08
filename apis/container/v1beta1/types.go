@@ -17,12 +17,9 @@ limitations under the License.
 package v1beta1
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
-
-	// Import v1alpha1 types for reuse
-	v1alpha1 "github.com/rossigee/provider-docker/apis/container/v1alpha1"
+	"github.com/crossplane/crossplane/apis/v2/core/v2"
+	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // A ContainerSpec defines the desired state of a Container.

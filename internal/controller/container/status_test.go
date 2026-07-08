@@ -17,19 +17,17 @@ limitations under the License.
 package container
 
 import (
-	"sort"
-	"testing"
-	"time"
-
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
 	"github.com/rossigee/provider-docker/internal/clients"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sort"
+	"testing"
+	"time"
 )
 
 func TestUpdateStatus(t *testing.T) {

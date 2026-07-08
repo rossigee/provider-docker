@@ -17,17 +17,10 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"compose.docker.crossplane.io"
+	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	"sigs.k8s.io/controller-runtime/pkg/scheme"
-)
-
-// Package type metadata.
-const (
-	Group   = "compose.docker.crossplane.io"
-	Version = "v1alpha1"
+	"v1alpha1"
 )
 
 var (
@@ -36,7 +29,7 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	// nolint:staticcheck // scheme.Builder is required for API registration
-	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 )
 
 // ComposeStack type metadata.
@@ -47,6 +40,6 @@ var (
 	ComposeStackGroupVersionKind = SchemeGroupVersion.WithKind(ComposeStackKind)
 )
 
-func init() {
-	SchemeBuilder.Register(&ComposeStack{}, &ComposeStackList{})
+func addKnownTypes(s *runtime.Scheme) error {
+	return nil
 }

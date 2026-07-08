@@ -17,17 +17,10 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	"sigs.k8s.io/controller-runtime/pkg/scheme"
-)
-
-// Package type metadata.
-const (
-	Group   = "volume.docker.crossplane.io"
-	Version = "v1alpha1"
+	"v1alpha1"
+	"volume.docker.crossplane.io"
 )
 
 var (
@@ -35,7 +28,7 @@ var (
 	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
-	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion} //nolint:staticcheck
+	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 )
 
 // Volume type metadata.
@@ -46,6 +39,6 @@ var (
 	VolumeGroupVersionKind = SchemeGroupVersion.WithKind(VolumeKind)
 )
 
-func init() {
-	SchemeBuilder.Register(&Volume{}, &VolumeList{})
+func addKnownTypes(s *runtime.Scheme) error {
+	return nil
 }
