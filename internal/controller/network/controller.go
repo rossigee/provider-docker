@@ -36,6 +36,7 @@ import (
 
 	networkv1alpha1 "github.com/rossigee/provider-docker/apis/network/v1alpha1"
 	"github.com/rossigee/provider-docker/internal/clients"
+	"github.com/rossigee/provider-docker/internal/tracing"
 )
 
 const (
@@ -113,6 +114,10 @@ type external struct {
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
+	_, span := tracing.StartSpan(ctx, "network.observe",
+		tracing.SpanAttrs("network", mg.GetName(), "observe")...)
+	defer span.End()
+
 	cr, ok := mg.(*networkv1alpha1.Network)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotNetwork)
@@ -144,6 +149,10 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
+	_, span := tracing.StartSpan(ctx, "network.create",
+		tracing.SpanAttrs("network", mg.GetName(), "create")...)
+	defer span.End()
+
 	cr, ok := mg.(*networkv1alpha1.Network)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotNetwork)
@@ -178,6 +187,10 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
+	_, span := tracing.StartSpan(ctx, "network.delete",
+		tracing.SpanAttrs("network", mg.GetName(), "delete")...)
+	defer span.End()
+
 	cr, ok := mg.(*networkv1alpha1.Network)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotNetwork)

@@ -44,6 +44,7 @@ import (
 	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
 	"github.com/rossigee/provider-docker/apis/container/v1beta1"
 	"github.com/rossigee/provider-docker/internal/clients"
+	"github.com/rossigee/provider-docker/internal/tracing"
 )
 
 const (
@@ -141,6 +142,10 @@ func (c *external) Disconnect(ctx context.Context) error {
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
+	_, span := tracing.StartSpan(ctx, "container.observe",
+		tracing.SpanAttrs("container", mg.GetName(), "observe")...)
+	defer span.End()
+
 	cr, ok := mg.(*v1alpha1.Container)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotContainer)
@@ -175,6 +180,10 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
+	_, span := tracing.StartSpan(ctx, "container.create",
+		tracing.SpanAttrs("container", mg.GetName(), "create")...)
+	defer span.End()
+
 	cr, ok := mg.(*v1alpha1.Container)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotContainer)
@@ -217,6 +226,10 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
+	_, span := tracing.StartSpan(ctx, "container.update",
+		tracing.SpanAttrs("container", mg.GetName(), "update")...)
+	defer span.End()
+
 	_, ok := mg.(*v1alpha1.Container)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotContainer)
@@ -229,6 +242,10 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
+	_, span := tracing.StartSpan(ctx, "container.delete",
+		tracing.SpanAttrs("container", mg.GetName(), "delete")...)
+	defer span.End()
+
 	cr, ok := mg.(*v1alpha1.Container)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotContainer)

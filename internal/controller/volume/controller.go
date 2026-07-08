@@ -37,6 +37,7 @@ import (
 
 	volumev1alpha1 "github.com/rossigee/provider-docker/apis/volume/v1alpha1"
 	"github.com/rossigee/provider-docker/internal/clients"
+	"github.com/rossigee/provider-docker/internal/tracing"
 )
 
 const (
@@ -114,6 +115,10 @@ type external struct {
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
+	_, span := tracing.StartSpan(ctx, "volume.observe",
+		tracing.SpanAttrs("volume", mg.GetName(), "observe")...)
+	defer span.End()
+
 	cr, ok := mg.(*volumev1alpha1.Volume)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotVolume)
@@ -145,6 +150,10 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
+	_, span := tracing.StartSpan(ctx, "volume.create",
+		tracing.SpanAttrs("volume", mg.GetName(), "create")...)
+	defer span.End()
+
 	cr, ok := mg.(*volumev1alpha1.Volume)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotVolume)
@@ -172,6 +181,10 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
+	_, span := tracing.StartSpan(ctx, "volume.delete",
+		tracing.SpanAttrs("volume", mg.GetName(), "delete")...)
+	defer span.End()
+
 	cr, ok := mg.(*volumev1alpha1.Volume)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotVolume)

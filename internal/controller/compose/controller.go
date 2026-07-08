@@ -45,6 +45,7 @@ import (
 	containerv1alpha1 "github.com/rossigee/provider-docker/apis/container/v1alpha1"
 	dockerclients "github.com/rossigee/provider-docker/internal/clients"
 	"github.com/rossigee/provider-docker/internal/compose"
+	"github.com/rossigee/provider-docker/internal/tracing"
 )
 
 const (
@@ -138,6 +139,10 @@ func (c *external) Disconnect(ctx context.Context) error {
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
+	_, span := tracing.StartSpan(ctx, "composestack.observe",
+		tracing.SpanAttrs("composestack", mg.GetName(), "observe")...)
+	defer span.End()
+
 	cr, ok := mg.(*composev1alpha1.ComposeStack)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotComposeStack)
@@ -239,6 +244,10 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
+	_, span := tracing.StartSpan(ctx, "composestack.create",
+		tracing.SpanAttrs("composestack", mg.GetName(), "create")...)
+	defer span.End()
+
 	cr, ok := mg.(*composev1alpha1.ComposeStack)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotComposeStack)
@@ -280,6 +289,10 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
+	_, span := tracing.StartSpan(ctx, "composestack.update",
+		tracing.SpanAttrs("composestack", mg.GetName(), "update")...)
+	defer span.End()
+
 	_, ok := mg.(*composev1alpha1.ComposeStack)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotComposeStack)
@@ -290,6 +303,10 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
+	_, span := tracing.StartSpan(ctx, "composestack.delete",
+		tracing.SpanAttrs("composestack", mg.GetName(), "delete")...)
+	defer span.End()
+
 	cr, ok := mg.(*composev1alpha1.ComposeStack)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotComposeStack)
