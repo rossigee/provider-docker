@@ -172,8 +172,7 @@ go.test.unit:
 # NOTE: Excludes controller vet/build checks due to known crossplane-runtime API compatibility issues
 reviewable: go.mod.tidy test.unit.safe go.fmt go.vet.limited
 	@echo "Running govulncheck..."
-	@GOWORK=off $$HOME/go/bin/go1.26.5 install -mod=mod golang.org/x/vuln/cmd/govulncheck@latest
-	@GOFLAGS=-mod=mod GOWORK=off $$HOME/go/bin/go1.26.5 run -mod=mod golang.org/x/vuln/cmd/govulncheck ./...
+	@GOFLAGS=-mod=mod GOWORK=off go run -mod=mod golang.org/x/vuln/cmd/govulncheck ./...
 	@echo "✅ Code is reviewable"
 
 go.mod.tidy:
