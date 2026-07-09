@@ -37,3 +37,4 @@ coverage.out
 # macOS
 .DS_Store
 .cache/
+vendor/
