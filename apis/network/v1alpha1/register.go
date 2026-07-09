@@ -17,18 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/runtime"
-	"network.docker.crossplane.io"
 	"reflect"
-	"v1alpha1"
-)
 
-var (
-	// SchemeGroupVersion is group version used to register these objects.
-	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
-
-	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
-	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // Network type metadata.
@@ -39,6 +30,10 @@ var (
 	NetworkGroupVersionKind = SchemeGroupVersion.WithKind(NetworkKind)
 )
 
-func addKnownTypes(s *runtime.Scheme) error {
-	return nil
-}
+// IPAMConfig type metadata.
+var (
+	IPAMConfigKind             = reflect.TypeOf(IPAMConfig{}).Name()
+	IPAMConfigGroupKind        = schema.GroupKind{Group: Group, Kind: IPAMConfigKind}
+	IPAMConfigKindAPIVersion   = IPAMConfigKind + "." + SchemeGroupVersion.String()
+	IPAMConfigGroupVersionKind = SchemeGroupVersion.WithKind(IPAMConfigKind)
+)

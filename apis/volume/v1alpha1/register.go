@@ -17,18 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
-	"v1alpha1"
-	"volume.docker.crossplane.io"
-)
 
-var (
-	// SchemeGroupVersion is group version used to register these objects.
-	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
-
-	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
-	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // Volume type metadata.
@@ -39,6 +30,10 @@ var (
 	VolumeGroupVersionKind = SchemeGroupVersion.WithKind(VolumeKind)
 )
 
-func addKnownTypes(s *runtime.Scheme) error {
-	return nil
-}
+// VolumeUsageData type metadata.
+var (
+	VolumeUsageDataKind             = reflect.TypeOf(VolumeUsageData{}).Name()
+	VolumeUsageDataGroupKind        = schema.GroupKind{Group: Group, Kind: VolumeUsageDataKind}
+	VolumeUsageDataKindAPIVersion   = VolumeUsageDataKind + "." + SchemeGroupVersion.String()
+	VolumeUsageDataGroupVersionKind = SchemeGroupVersion.WithKind(VolumeUsageDataKind)
+)

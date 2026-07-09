@@ -17,19 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"compose.docker.crossplane.io"
-	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
-	"v1alpha1"
-)
 
-var (
-	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
-
-	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
-	// nolint:staticcheck // scheme.Builder is required for API registration
-	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // ComposeStack type metadata.
@@ -40,6 +30,10 @@ var (
 	ComposeStackGroupVersionKind = SchemeGroupVersion.WithKind(ComposeStackKind)
 )
 
-func addKnownTypes(s *runtime.Scheme) error {
-	return nil
-}
+// ComposeReference type metadata.
+var (
+	ComposeReferenceKind             = reflect.TypeOf(ComposeReference{}).Name()
+	ComposeReferenceGroupKind        = schema.GroupKind{Group: Group, Kind: ComposeReferenceKind}
+	ComposeReferenceKindAPIVersion   = ComposeReferenceKind + "." + SchemeGroupVersion.String()
+	ComposeReferenceGroupVersionKind = SchemeGroupVersion.WithKind(ComposeReferenceKind)
+)

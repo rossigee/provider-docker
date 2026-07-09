@@ -17,19 +17,9 @@ limitations under the License.
 package v1beta1
 
 import (
-	"container.docker.m.crossplane.io"
-	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
-	"v1beta1"
-)
 
-var (
-	// SchemeGroupVersion is group version used to register these objects.
-	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
-
-	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
-	// nolint:staticcheck // scheme.Builder is required for API registration
-	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // Container type metadata.
@@ -39,7 +29,3 @@ var (
 	ContainerKindAPIVersion   = ContainerKind + "." + SchemeGroupVersion.String()
 	ContainerGroupVersionKind = SchemeGroupVersion.WithKind(ContainerKind)
 )
-
-func addKnownTypes(s *runtime.Scheme) error {
-	return nil
-}

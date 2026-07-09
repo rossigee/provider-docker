@@ -19,14 +19,16 @@ package compose
 import (
 	"context"
 	"fmt"
-	"github.com/compose-spec/compose-go/v2/cli"
-	"github.com/compose-spec/compose-go/v2/types"
-	"github.com/pkg/errors"
-	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/compose-spec/compose-go/v2/cli"
+	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/pkg/errors"
+
+	containerv1alpha1 "github.com/rossigee/provider-docker/apis/container/v1alpha1"
 )
 
 // Parser handles parsing Docker Compose files and converting them to Crossplane resources.

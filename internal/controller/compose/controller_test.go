@@ -24,13 +24,13 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/rossigee/provider-docker/apis/compose/v1alpha1"
+	composev1alpha1 "github.com/rossigee/provider-docker/apis/compose/v1alpha1"
 	"github.com/rossigee/provider-docker/internal/compose"
 	"io"
-	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"testing"
@@ -65,7 +65,7 @@ func (m *mockDockerClient) ContainerInspect(ctx context.Context, containerID str
 	return container.InspectResponse{}, nil
 }
 
-func (m *mockDockerClient) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
+func (m *mockDockerClient) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *specsv1.Platform, containerName string) (container.CreateResponse, error) {
 	if m.createError != nil {
 		return container.CreateResponse{}, m.createError
 	}

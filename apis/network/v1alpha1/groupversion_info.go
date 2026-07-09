@@ -14,26 +14,32 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package v1alpha1 contains the v1alpha1 group network.docker.crossplane.io resources of the provider.
+// +kubebuilder:object:generate=true
+// +groupName=network.docker.crossplane.io
+// +versionName=v1alpha1
 package v1alpha1
 
 import (
-	"reflect"
-
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// Container type metadata.
-var (
-	ContainerKind             = reflect.TypeOf(Container{}).Name()
-	ContainerGroupKind        = schema.GroupKind{Group: Group, Kind: ContainerKind}
-	ContainerKindAPIVersion   = ContainerKind + "." + SchemeGroupVersion.String()
-	ContainerGroupVersionKind = SchemeGroupVersion.WithKind(ContainerKind)
+const (
+	Group   = "network.docker.crossplane.io"
+	Version = "v1alpha1"
 )
 
-// EnvVar type metadata.
 var (
-	EnvVarKind             = reflect.TypeOf(EnvVar{}).Name()
-	EnvVarGroupKind        = schema.GroupKind{Group: Group, Kind: EnvVarKind}
-	EnvVarKindAPIVersion   = EnvVarKind + "." + SchemeGroupVersion.String()
-	EnvVarGroupVersionKind = SchemeGroupVersion.WithKind(EnvVarKind)
+	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
+	SchemeBuilder      = runtime.NewSchemeBuilder(addKnownTypes)
+	AddToScheme        = SchemeBuilder.AddToScheme
 )
+
+func addKnownTypes(s *runtime.Scheme) error {
+	s.AddKnownTypes(SchemeGroupVersion,
+		&Network{},
+		&NetworkList{},
+	)
+	return nil
+}
