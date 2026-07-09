@@ -9,7 +9,7 @@ PLATFORMS ?= linux_amd64 linux_arm64
 -include build/makelib/output.mk
 
 # Setup Go with Go 1.26.4 and golangci-lint v2.12.2
-GO_REQUIRED_VERSION ?= 1.26.4
+GO_REQUIRED_VERSION ?= 1.26.5
 GOLANGCILINT_VERSION ?= 2.12.2
 NPROCS ?= 1
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
@@ -171,6 +171,9 @@ go.test.unit:
 
 # NOTE: Excludes controller vet/build checks due to known crossplane-runtime API compatibility issues
 reviewable: go.mod.tidy test.unit.safe go.fmt go.vet.limited
+	@echo "Running govulncheck..."
+	@GOWORK=off $$HOME/go/bin/go1.26.5 install -mod=mod golang.org/x/vuln/cmd/govulncheck@latest
+	@GOFLAGS=-mod=mod GOWORK=off $$HOME/go/bin/go1.26.5 run -mod=mod golang.org/x/vuln/cmd/govulncheck ./...
 	@echo "✅ Code is reviewable"
 
 go.mod.tidy:
