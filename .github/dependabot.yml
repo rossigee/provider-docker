@@ -32,6 +32,9 @@ updates:
     labels:
       - "dependencies"
       - "go"
+    ignore:
+      # docker/docker v28+ has no fixed version; using +incompatible requires daemon API
+      - dependency-name: "github.com/docker/docker"
     # Groups to reduce PR noise
     groups:
       go-dependencies:
