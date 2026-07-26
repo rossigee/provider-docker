@@ -46,9 +46,15 @@ XPKGS = provider-docker
 xpkg.build.provider-docker: do.build.images
 
 # Publish artifacts for release
+#
+# NOTE: we do NOT also publish the plain runtime image (img.release.publish)
+# here. It shares the exact same registry/org/name/tag as the xpkg package
+# below (ghcr.io/rossigee/provider-docker:$(VERSION)), and the controller
+# binary is already embedded into the xpkg via --embed-runtime-image (see
+# build/makelib/xpkg.mk). Publishing the plain image to that same ref would
+# overwrite the xpkg's package.yaml, breaking `crossplane xpkg` installs.
 publish.artifacts:
 	$(foreach r,$(XPKG_REG_ORGS), $(foreach x,$(XPKGS),@$(MAKE) xpkg.release.publish.$(r).$(x)))
-	$(foreach r,$(REGISTRY_ORGS), $(foreach i,$(IMAGES),@$(MAKE) img.release.publish.$(r).$(i)))
 
 # Setup Package Metadata
 CROSSPLANE_VERSION = 2.0.2
