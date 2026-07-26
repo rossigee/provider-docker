@@ -1,6 +1,6 @@
 module github.com/rossigee/provider-docker
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/compose-spec/compose-go/v2 v2.11.0

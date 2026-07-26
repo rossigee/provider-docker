@@ -8,7 +8,7 @@ PLATFORMS ?= linux_amd64 linux_arm64
 # Setup Output
 -include build/makelib/output.mk
 
-# Setup Go with Go 1.26.4 and golangci-lint v2.12.2
+# Setup Go with Go 1.26.5 and golangci-lint v2.12.2
 GO_REQUIRED_VERSION ?= 1.26.5
 GOLANGCILINT_VERSION ?= 2.12.2
 NPROCS ?= 1
