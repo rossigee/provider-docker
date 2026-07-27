@@ -58,12 +58,8 @@ func main() {
 	shutdownTracing := tracing.Init("provider-docker")
 	defer shutdownTracing(context.Background())
 
-	if *debug {
-		// The controller-runtime runs with a no-op logger by default. It is
-		// *very* verbose even at info level, so we only provide it a real
-		// logger when we're running in debug mode.
-		ctrl.SetLogger(zl)
-	}
+	// Always set the controller-runtime logger to prevent logging errors
+	ctrl.SetLogger(zl)
 
 	log.Info("Provider starting up",
 		"provider", "provider-docker",
