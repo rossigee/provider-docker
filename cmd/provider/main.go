@@ -28,6 +28,8 @@ import (
 	"github.com/rossigee/provider-docker/internal/tracing"
 	"github.com/rossigee/provider-docker/internal/version"
 	"gopkg.in/alecthomas/kingpin.v2"
+	apimachineryruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -74,6 +76,10 @@ func main() {
 		"management-policies", *enableManagementPolicies,
 		"debug-mode", *debug)
 
+	s := apimachineryruntime.NewScheme()
+	kingpin.FatalIfError(scheme.AddToScheme(s), "Cannot add k8s types to scheme")
+	kingpin.FatalIfError(apis.AddToScheme(s), "Cannot add Docker APIs to scheme")
+
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		kingpin.FatalIfError(err, "Cannot get API server rest config")
@@ -88,6 +94,7 @@ func main() {
 		LeaderElectionNamespace:    *leaderElectionNS,
 		LeaderElectionResourceLock: "leases",
 		LeaseDuration:              func() *time.Duration { d := 60 * time.Second; return &d }(),
+		Scheme:                         s,
 		RenewDeadline:              func() *time.Duration { d := 50 * time.Second; return &d }(),
 	})
 	if err != nil {
@@ -105,10 +112,6 @@ func main() {
 	if *enableManagementPolicies {
 		o.Features.Enable(features.EnableAlphaManagementPolicies)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaManagementPolicies)
-	}
-
-	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		kingpin.FatalIfError(err, "Cannot add Docker APIs to scheme")
 	}
 
 	if err := controller.Setup(mgr, o); err != nil {

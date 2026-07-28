@@ -22,6 +22,7 @@ import (
 	composev1beta1 "github.com/rossigee/provider-docker/apis/compose/v1beta1"
 	containerv1alpha1 "github.com/rossigee/provider-docker/apis/container/v1alpha1"
 	containerv1beta1 "github.com/rossigee/provider-docker/apis/container/v1beta1"
+	dockerv1beta1 "github.com/rossigee/provider-docker/apis/v1beta1"
 	networkv1alpha1 "github.com/rossigee/provider-docker/apis/network/v1alpha1"
 	networkv1beta1 "github.com/rossigee/provider-docker/apis/network/v1beta1"
 	volumev1alpha1 "github.com/rossigee/provider-docker/apis/volume/v1alpha1"
@@ -32,6 +33,7 @@ import (
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes,
+		dockerv1beta1.SchemeBuilder.AddToScheme,
 		containerv1alpha1.SchemeBuilder.AddToScheme,
 		containerv1beta1.SchemeBuilder.AddToScheme,
 		composev1alpha1.SchemeBuilder.AddToScheme,

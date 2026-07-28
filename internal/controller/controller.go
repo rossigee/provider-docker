@@ -22,12 +22,17 @@ import (
 	"github.com/rossigee/provider-docker/internal/controller/compose"
 	"github.com/rossigee/provider-docker/internal/controller/container"
 	"github.com/rossigee/provider-docker/internal/controller/network"
+	"github.com/rossigee/provider-docker/internal/controller/providerconfig"
 	"github.com/rossigee/provider-docker/internal/controller/volume"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // Setup Docker controllers with the manager.
 func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
+	if err := providerconfig.Setup(mgr); err != nil {
+		return err
+	}
+
 	// Setup v1alpha1 container controller (cluster-scoped for backwards compatibility)
 	if err := container.Setup(mgr, o); err != nil {
 		return err
