@@ -10,17 +10,16 @@
 
 **✅ STATUS: v2-NATIVE IMPLEMENTATION** - Native Go Crossplane v2 provider for Docker resource management
 
-A native Go-based Crossplane v2 provider for managing Docker resources with full dual-scope support, designed to replace complex Terraform-based compositions with clean, efficient resource management.
+A native Go-based Crossplane v2 provider for managing Docker resources, designed to replace complex Terraform-based compositions with clean, efficient resource management.
 
 ## Features
 
-- **✅ Container Management**: Create, configure, and manage Docker containers with full lifecycle support
-- **✅ Volume Management**: Docker volume lifecycle and storage management
-- **✅ Network Management**: Custom Docker network creation and configuration
-- **✅ Crossplane v2 Native**: Full dual-scope support (cluster-scoped + namespaced resources)
+- **✅ Container Management**: create, configure, and manage Docker containers with full lifecycle support — the only resource with both cluster-scoped (v1alpha1) and namespaced (v1beta1) controllers wired and active
+- **✅ Volume Management**: Docker volume lifecycle and storage management (v1alpha1, cluster-scoped only — v1beta1 types exist but have no controller yet)
+- **✅ Network Management**: custom Docker network creation and configuration (v1alpha1, cluster-scoped only — v1beta1 types exist but have no controller yet)
 - **✅ MRD Support**: Managed Resource Definitions with activation policies
-- **✅ Backward Compatibility**: Legacy v1alpha1 resources continue working
-- **🚧 Service Management**: Docker Compose-style multi-container services (in development)
+- **✅ Backward Compatibility**: legacy v1alpha1 resources continue working
+- **🚧 Compose/Service Management**: Docker Compose-style multi-container services (v1alpha1 controller only; v1beta1 not yet wired)
 
 ## Container Registry
 
@@ -79,6 +78,40 @@ spec:
   providerConfigRef:
     name: docker-config
 ```
+
+## Getting Started
+
+### Prerequisites
+
+- Kubernetes with Crossplane installed
+- Access to a Docker daemon (local socket or remote TCP/TLS endpoint)
+
+### Installation
+
+```bash
+kubectl crossplane install provider ghcr.io/rossigee/provider-docker:latest
+```
+
+### Configuration
+
+```yaml
+apiVersion: docker.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: docker-config
+spec:
+  host: unix:///var/run/docker.sock
+```
+
+## Resource Types
+
+| Resource | Cluster-scoped (v1alpha1) | Namespaced (v1beta1) | Description |
+|----------|---------------------------|-----------------------|-------------|
+| Container | `container.docker.crossplane.io/v1alpha1` | `container.docker.m.crossplane.io/v1beta1` — controller active | Docker container lifecycle |
+| Volume | `volume.docker.crossplane.io/v1alpha1` | `volume.docker.m.crossplane.io/v1beta1` — types only, no controller yet | Docker volume management |
+| Network | `network.docker.crossplane.io/v1alpha1` | `network.docker.m.crossplane.io/v1beta1` — types only, no controller yet | Custom Docker networks |
+| ComposeStack | `compose.docker.crossplane.io/v1alpha1` | `compose.docker.m.crossplane.io/v1beta1` — types only, no controller yet | Docker Compose-style multi-container services |
+| ProviderConfig | `docker.crossplane.io/v1beta1` | — | Docker daemon connection configuration |
 
 ## Local Development
 
