@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/compose-spec/compose-go/v2 v2.13.0
-	github.com/crossplane/crossplane-runtime/v2 v2.3.3
+	github.com/crossplane/crossplane-runtime/v2 v2.4.0-rc.0
 	github.com/crossplane/crossplane-tools v0.0.0-20251017183449-dd4517244339
 	github.com/crossplane/crossplane/apis/v2 v2.4.0-rc.0
 	github.com/docker/docker v28.5.2+incompatible
