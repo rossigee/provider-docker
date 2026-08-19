@@ -94,7 +94,7 @@ func main() {
 		LeaderElectionNamespace:    *leaderElectionNS,
 		LeaderElectionResourceLock: "leases",
 		LeaseDuration:              func() *time.Duration { d := 60 * time.Second; return &d }(),
-		Scheme:                         s,
+		Scheme:                     s,
 		RenewDeadline:              func() *time.Duration { d := 50 * time.Second; return &d }(),
 	})
 	if err != nil {
