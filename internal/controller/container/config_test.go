@@ -18,6 +18,10 @@ package container
 
 import (
 	"errors"
+	"strings"
+	"testing"
+	"time"
+
 	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
@@ -25,9 +29,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
-	"testing"
-	"time"
 )
 
 // Helper functions for tests

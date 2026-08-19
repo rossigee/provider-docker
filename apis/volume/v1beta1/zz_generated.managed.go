@@ -19,22 +19,22 @@ package v1beta1
 
 import xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 
-// GetCondition of this ProviderConfig.
-func (p *ProviderConfig) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
-	return p.Status.GetCondition(ct)
+// GetProviderConfigReference of this Volume.
+func (mg *Volume) GetProviderConfigReference() *xpv2.ProviderConfigReference {
+	return mg.Spec.ProviderConfigReference
 }
 
-// GetUsers of this ProviderConfig.
-func (p *ProviderConfig) GetUsers() int64 {
-	return p.Status.Users
+// GetWriteConnectionSecretToReference of this Volume.
+func (mg *Volume) GetWriteConnectionSecretToReference() *xpv2.LocalSecretReference {
+	return mg.Spec.WriteConnectionSecretToReference
 }
 
-// SetConditions of this ProviderConfig.
-func (p *ProviderConfig) SetConditions(c ...xpv2.Condition) {
-	p.Status.SetConditions(c...)
+// SetProviderConfigReference of this Volume.
+func (mg *Volume) SetProviderConfigReference(r *xpv2.ProviderConfigReference) {
+	mg.Spec.ProviderConfigReference = r
 }
 
-// SetUsers of this ProviderConfig.
-func (p *ProviderConfig) SetUsers(i int64) {
-	p.Status.Users = i
+// SetWriteConnectionSecretToReference of this Volume.
+func (mg *Volume) SetWriteConnectionSecretToReference(r *xpv2.LocalSecretReference) {
+	mg.Spec.WriteConnectionSecretToReference = r
 }

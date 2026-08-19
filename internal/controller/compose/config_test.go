@@ -18,6 +18,8 @@ package compose
 
 import (
 	"context"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	composev1alpha1 "github.com/rossigee/provider-docker/apis/compose/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
 )
 
 func TestExternal_GetValueFromSecret(t *testing.T) {

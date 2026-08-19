@@ -9,7 +9,7 @@ PLATFORMS ?= linux_amd64 linux_arm64
 -include build/makelib/output.mk
 
 # Setup Go with Go 1.26.5 and golangci-lint v2.12.2
-GO_REQUIRED_VERSION ?= 1.26.5
+GO_REQUIRED_VERSION ?= 1.26.6
 GOLANGCILINT_VERSION ?= 2.12.2
 NPROCS ?= 1
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))

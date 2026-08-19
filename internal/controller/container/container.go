@@ -19,6 +19,10 @@ package container
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	xpcontroller "github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
@@ -38,9 +42,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const (
@@ -1036,7 +1037,7 @@ func (c *external) buildObservedPorts(containerInfo *container.InspectResponse) 
 			// Port exposed but not bound to host
 			ports = append(ports, v1alpha1.ContainerPort{
 				PrivatePort: int32(port.Int()),
-				Type:        string(port.Proto()),
+				Type:        port.Proto(),
 			})
 			continue
 		}
@@ -1045,7 +1046,7 @@ func (c *external) buildObservedPorts(containerInfo *container.InspectResponse) 
 		for _, binding := range bindings {
 			containerPort := v1alpha1.ContainerPort{
 				PrivatePort: int32(port.Int()),
-				Type:        string(port.Proto()),
+				Type:        port.Proto(),
 				IP:          binding.HostIP,
 			}
 

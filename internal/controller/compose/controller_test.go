@@ -18,6 +18,9 @@ package compose
 
 import (
 	"context"
+	"io"
+	"testing"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -28,12 +31,10 @@ import (
 	"github.com/pkg/errors"
 	composev1alpha1 "github.com/rossigee/provider-docker/apis/compose/v1alpha1"
 	"github.com/rossigee/provider-docker/internal/compose"
-	"io"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
 )
 
 // Mock Docker Client

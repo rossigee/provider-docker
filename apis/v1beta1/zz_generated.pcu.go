@@ -19,22 +19,12 @@ package v1beta1
 
 import xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 
-// GetCondition of this ProviderConfig.
-func (p *ProviderConfig) GetCondition(ct xpv2.ConditionType) xpv2.Condition {
-	return p.Status.GetCondition(ct)
+// GetProviderConfigReference of this ProviderConfigUsage.
+func (p *ProviderConfigUsage) GetProviderConfigReference() xpv2.Reference {
+	return p.ProviderConfigReference
 }
 
-// GetUsers of this ProviderConfig.
-func (p *ProviderConfig) GetUsers() int64 {
-	return p.Status.Users
-}
-
-// SetConditions of this ProviderConfig.
-func (p *ProviderConfig) SetConditions(c ...xpv2.Condition) {
-	p.Status.SetConditions(c...)
-}
-
-// SetUsers of this ProviderConfig.
-func (p *ProviderConfig) SetUsers(i int64) {
-	p.Status.Users = i
+// SetProviderConfigReference of this ProviderConfigUsage.
+func (p *ProviderConfigUsage) SetProviderConfigReference(r xpv2.Reference) {
+	p.ProviderConfigReference = r
 }

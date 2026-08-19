@@ -18,6 +18,10 @@ package container
 
 import (
 	"context"
+	"io"
+	"strings"
+	"testing"
+
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
@@ -31,11 +35,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
 	"github.com/rossigee/provider-docker/internal/clients"
-	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"strings"
-	"testing"
 )
 
 // Mock DockerClient for testing - implements complete DockerClient interface
