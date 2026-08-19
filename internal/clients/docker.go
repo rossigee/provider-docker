@@ -198,7 +198,7 @@ func createHTTPClientWithTLS(tlsConfig *v1beta1.TLSConfig, creds *DockerCredenti
 
 	// Configure certificate verification
 	if tlsConfig.Verify != nil {
-		tlsConf.InsecureSkipVerify = !*tlsConfig.Verify
+		tlsConf.InsecureSkipVerify = !*tlsConfig.Verify // #nosec G402 -- gated by TLSConfig.Verify in provider config
 	}
 
 	// Load CA certificate
@@ -236,7 +236,7 @@ func createHTTPClientWithTLS(tlsConfig *v1beta1.TLSConfig, creds *DockerCredenti
 			KeyFile:  *tlsConfig.CertPath + "/key.pem",
 		}
 		if tlsConfig.Verify != nil && !*tlsConfig.Verify {
-			options.InsecureSkipVerify = true
+			options.InsecureSkipVerify = true // #nosec G402 -- gated by TLSConfig.Verify
 		}
 		if len(tlsConfig.CAData) > 0 || (creds != nil && len(creds.CAData) > 0) {
 			// CA already configured above
