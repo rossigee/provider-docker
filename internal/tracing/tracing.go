@@ -22,11 +22,10 @@ const (
 	operationAttr    = "crossplane.operation"
 )
 
-var tracer trace.Tracer
+var tracer = otel.Tracer(tracerName)
 var tp *sdktrace.TracerProvider
 
 func Init(serviceName string) func(context.Context) {
-	tracer = otel.Tracer(tracerName)
 
 	enabled, _ := strconv.ParseBool(getEnv("OTEL_TRACING_ENABLED", "false"))
 	if !enabled {
