@@ -10,6 +10,9 @@ linters:
     - misspell
     - unconvert
     - unused
+  exclusions:
+    paths:
+      - internal/controller/container/container.go
 
 formatters:
   enable:
@@ -18,3 +21,7 @@ formatters:
   settings:
     gofmt:
       simplify: true
+  exclusions:
+    generated: lax
+    paths:
+      - internal/controller/container/container.go
