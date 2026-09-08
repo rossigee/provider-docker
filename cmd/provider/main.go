@@ -134,7 +134,9 @@ func main() {
 
 	if *enableManagementPolicies {
 		o.Features.Enable(features.EnableAlphaManagementPolicies)
+		o.Features.Enable(feature.EnableBetaManagementPolicies)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaManagementPolicies)
+		log.Info("Beta feature enabled", "flag", feature.EnableBetaManagementPolicies)
 	}
 
 	if err := controller.Setup(mgr, o); err != nil {

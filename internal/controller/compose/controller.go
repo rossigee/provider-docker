@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -69,8 +70,7 @@ const (
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := managed.ControllerName(composev1alpha1.ComposeStackGroupKind.String())
 
-	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(composev1alpha1.ComposeStackGroupVersionKind),
+	opts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
 			kube:         mgr.GetClient(),
 			usage:        resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
@@ -78,7 +78,17 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithPollInterval(pollInterval),
-		managed.WithRecorder(nil))
+		managed.WithRecorder(nil),
+	}
+
+	if o.Features != nil && o.Features.Enabled(feature.EnableBetaManagementPolicies) {
+		opts = append(opts, managed.WithManagementPolicies())
+	}
+
+	r := managed.NewReconciler(mgr,
+		resource.ManagedKind(composev1alpha1.ComposeStackGroupVersionKind),
+		opts...,
+	)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).

@@ -26,6 +26,7 @@ import (
 	"time"
 
 	xpcontroller "github.com/crossplane/crossplane-runtime/v2/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
@@ -76,15 +77,25 @@ func NewContainerConfigBuilder() ContainerConfigBuilder {
 func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 	name := managed.ControllerName(v1alpha1.ContainerGroupKind.Kind)
 
-	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.ContainerGroupVersionKind),
+	opts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
 			kube:   mgr.GetClient(),
 			usage:  resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
 			logger: o.Logger,
 		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
-		managed.WithRecorder(nil))
+		managed.WithPollInterval(o.PollInterval),
+		managed.WithRecorder(nil),
+	}
+
+	if o.Features != nil && o.Features.Enabled(feature.EnableBetaManagementPolicies) {
+		opts = append(opts, managed.WithManagementPolicies())
+	}
+
+	r := managed.NewReconciler(mgr,
+		resource.ManagedKind(v1alpha1.ContainerGroupVersionKind),
+		opts...,
+	)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -1143,8 +1154,7 @@ func isNotFound(err error) bool {
 func SetupV1Beta1(mgr ctrl.Manager, o xpcontroller.Options) error {
 	name := managed.ControllerName(v1beta1.ContainerGroupKind.Kind + "-v1beta1")
 
-	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1beta1.ContainerGroupVersionKind),
+	opts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&v1beta1Connector{
 			kube:   mgr.GetClient(),
 			usage:  resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
@@ -1153,6 +1163,15 @@ func SetupV1Beta1(mgr ctrl.Manager, o xpcontroller.Options) error {
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithPollInterval(o.PollInterval),
 		managed.WithRecorder(nil),
+	}
+
+	if o.Features != nil && o.Features.Enabled(feature.EnableBetaManagementPolicies) {
+		opts = append(opts, managed.WithManagementPolicies())
+	}
+
+	r := managed.NewReconciler(mgr,
+		resource.ManagedKind(v1beta1.ContainerGroupVersionKind),
+		opts...,
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).

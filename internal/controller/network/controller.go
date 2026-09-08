@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
@@ -54,8 +55,7 @@ const (
 func SetupNetwork(mgr ctrl.Manager, o controller.Options) error {
 	name := managed.ControllerName(networkv1alpha1.NetworkGroupKind.Kind)
 
-	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(networkv1alpha1.NetworkGroupVersionKind),
+	opts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
 			kube:   mgr.GetClient(),
 			usage:  resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
@@ -63,7 +63,17 @@ func SetupNetwork(mgr ctrl.Manager, o controller.Options) error {
 		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithPollInterval(o.PollInterval),
-		managed.WithRecorder(nil))
+		managed.WithRecorder(nil),
+	}
+
+	if o.Features != nil && o.Features.Enabled(feature.EnableBetaManagementPolicies) {
+		opts = append(opts, managed.WithManagementPolicies())
+	}
+
+	r := managed.NewReconciler(mgr,
+		resource.ManagedKind(networkv1alpha1.NetworkGroupVersionKind),
+		opts...,
+	)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
