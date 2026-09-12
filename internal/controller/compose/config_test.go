@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	composev1alpha1 "github.com/rossigee/provider-docker/apis/compose/v1alpha1"
+	composev1beta1 "github.com/rossigee/provider-docker/apis/compose/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,25 +32,25 @@ import (
 func TestExternal_GetValueFromSecret(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
-	_ = composev1alpha1.SchemeBuilder.AddToScheme(scheme)
+	_ = composev1beta1.SchemeBuilder.AddToScheme(scheme)
 
 	tests := []struct {
 		name      string
-		cr        *composev1alpha1.ComposeStack
-		secretRef *composev1alpha1.SecretKeySelector
+		cr        *composev1beta1.ComposeStack
+		secretRef *composev1beta1.SecretKeySelector
 		secret    *corev1.Secret
 		wantValue string
 		wantErr   bool
 	}{
 		{
 			name: "successful secret resolution",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
 			},
-			secretRef: &composev1alpha1.SecretKeySelector{
+			secretRef: &composev1beta1.SecretKeySelector{
 				Name: "test-secret",
 				Key:  "password",
 			},
@@ -69,13 +69,13 @@ func TestExternal_GetValueFromSecret(t *testing.T) {
 		},
 		{
 			name: "secret with explicit namespace",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
 			},
-			secretRef: &composev1alpha1.SecretKeySelector{
+			secretRef: &composev1beta1.SecretKeySelector{
 				Name:      "test-secret",
 				Namespace: stringPtr("kube-system"),
 				Key:       "api-key",
@@ -94,13 +94,13 @@ func TestExternal_GetValueFromSecret(t *testing.T) {
 		},
 		{
 			name: "secret not found",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
 			},
-			secretRef: &composev1alpha1.SecretKeySelector{
+			secretRef: &composev1beta1.SecretKeySelector{
 				Name: "missing-secret",
 				Key:  "password",
 			},
@@ -110,13 +110,13 @@ func TestExternal_GetValueFromSecret(t *testing.T) {
 		},
 		{
 			name: "key not found in secret",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
 			},
-			secretRef: &composev1alpha1.SecretKeySelector{
+			secretRef: &composev1beta1.SecretKeySelector{
 				Name: "test-secret",
 				Key:  "missing-key",
 			},
@@ -167,25 +167,25 @@ func TestExternal_GetValueFromSecret(t *testing.T) {
 func TestExternal_GetValueFromConfigMap(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
-	_ = composev1alpha1.SchemeBuilder.AddToScheme(scheme)
+	_ = composev1beta1.SchemeBuilder.AddToScheme(scheme)
 
 	tests := []struct {
 		name         string
-		cr           *composev1alpha1.ComposeStack
-		configMapRef *composev1alpha1.ConfigMapKeySelector
+		cr           *composev1beta1.ComposeStack
+		configMapRef *composev1beta1.ConfigMapKeySelector
 		configMap    *corev1.ConfigMap
 		wantValue    string
 		wantErr      bool
 	}{
 		{
 			name: "successful configmap resolution",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
 			},
-			configMapRef: &composev1alpha1.ConfigMapKeySelector{
+			configMapRef: &composev1beta1.ConfigMapKeySelector{
 				Name: "test-config",
 				Key:  "database-host",
 			},
@@ -204,13 +204,13 @@ func TestExternal_GetValueFromConfigMap(t *testing.T) {
 		},
 		{
 			name: "configmap with explicit namespace",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
 			},
-			configMapRef: &composev1alpha1.ConfigMapKeySelector{
+			configMapRef: &composev1beta1.ConfigMapKeySelector{
 				Name:      "test-config",
 				Namespace: stringPtr("kube-system"),
 				Key:       "cluster-name",
@@ -229,13 +229,13 @@ func TestExternal_GetValueFromConfigMap(t *testing.T) {
 		},
 		{
 			name: "configmap not found",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
 			},
-			configMapRef: &composev1alpha1.ConfigMapKeySelector{
+			configMapRef: &composev1beta1.ConfigMapKeySelector{
 				Name: "missing-config",
 				Key:  "some-key",
 			},
@@ -245,13 +245,13 @@ func TestExternal_GetValueFromConfigMap(t *testing.T) {
 		},
 		{
 			name: "key not found in configmap",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
 			},
-			configMapRef: &composev1alpha1.ConfigMapKeySelector{
+			configMapRef: &composev1beta1.ConfigMapKeySelector{
 				Name: "test-config",
 				Key:  "missing-key",
 			},
@@ -302,7 +302,7 @@ func TestExternal_GetValueFromConfigMap(t *testing.T) {
 func TestExternal_BuildEnvironment(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
-	_ = composev1alpha1.SchemeBuilder.AddToScheme(scheme)
+	_ = composev1beta1.SchemeBuilder.AddToScheme(scheme)
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -333,22 +333,22 @@ func TestExternal_BuildEnvironment(t *testing.T) {
 		kube: fakeClient,
 	}
 
-	cr := &composev1alpha1.ComposeStack{
+	cr := &composev1beta1.ComposeStack{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-stack",
 			Namespace: "default",
 		},
-		Spec: composev1alpha1.ComposeStackSpec{
-			ForProvider: composev1alpha1.ComposeStackParameters{
-				Environment: []composev1alpha1.ComposeEnvVar{
+		Spec: composev1beta1.ComposeStackSpec{
+			ForProvider: composev1beta1.ComposeStackParameters{
+				Environment: []composev1beta1.ComposeEnvVar{
 					{
 						Name:  "NODE_ENV",
 						Value: stringPtr("production"),
 					},
 					{
 						Name: "DATABASE_HOST",
-						ValueFrom: &composev1alpha1.EnvVarSource{
-							ConfigMapKeyRef: &composev1alpha1.ConfigMapKeySelector{
+						ValueFrom: &composev1beta1.EnvVarSource{
+							ConfigMapKeyRef: &composev1beta1.ConfigMapKeySelector{
 								Name: "test-config",
 								Key:  "database-host",
 							},
@@ -356,8 +356,8 @@ func TestExternal_BuildEnvironment(t *testing.T) {
 					},
 					{
 						Name: "DATABASE_PASSWORD",
-						ValueFrom: &composev1alpha1.EnvVarSource{
-							SecretKeyRef: &composev1alpha1.SecretKeySelector{
+						ValueFrom: &composev1beta1.EnvVarSource{
+							SecretKeyRef: &composev1beta1.SecretKeySelector{
 								Name: "test-secret",
 								Key:  "password",
 							},
@@ -384,7 +384,7 @@ func TestExternal_BuildEnvironment(t *testing.T) {
 func TestExternal_GetComposeContent(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
-	_ = composev1alpha1.SchemeBuilder.AddToScheme(scheme)
+	_ = composev1beta1.SchemeBuilder.AddToScheme(scheme)
 
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -423,19 +423,19 @@ services:
 
 	tests := []struct {
 		name    string
-		cr      *composev1alpha1.ComposeStack
+		cr      *composev1beta1.ComposeStack
 		want    string
 		wantErr bool
 	}{
 		{
 			name: "inline compose content",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
-				Spec: composev1alpha1.ComposeStackSpec{
-					ForProvider: composev1alpha1.ComposeStackParameters{
+				Spec: composev1beta1.ComposeStackSpec{
+					ForProvider: composev1beta1.ComposeStackParameters{
 						Compose: stringPtr(`
 version: '3.8'
 services:
@@ -455,15 +455,15 @@ services:
 		},
 		{
 			name: "configmap reference",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
-				Spec: composev1alpha1.ComposeStackSpec{
-					ForProvider: composev1alpha1.ComposeStackParameters{
-						ComposeRef: &composev1alpha1.ComposeReference{
-							ConfigMapRef: &composev1alpha1.ConfigMapReference{
+				Spec: composev1beta1.ComposeStackSpec{
+					ForProvider: composev1beta1.ComposeStackParameters{
+						ComposeRef: &composev1beta1.ComposeReference{
+							ConfigMapRef: &composev1beta1.ConfigMapReference{
 								Name: "compose-config",
 								Key:  "docker-compose.yml",
 							},
@@ -481,15 +481,15 @@ services:
 		},
 		{
 			name: "secret reference",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
-				Spec: composev1alpha1.ComposeStackSpec{
-					ForProvider: composev1alpha1.ComposeStackParameters{
-						ComposeRef: &composev1alpha1.ComposeReference{
-							SecretRef: &composev1alpha1.SecretReference{
+				Spec: composev1beta1.ComposeStackSpec{
+					ForProvider: composev1beta1.ComposeStackParameters{
+						ComposeRef: &composev1beta1.ComposeReference{
+							SecretRef: &composev1beta1.SecretReference{
 								Name: "compose-secret",
 								Key:  "docker-compose.yml",
 							},
@@ -507,13 +507,13 @@ services:
 		},
 		{
 			name: "no compose content",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
-				Spec: composev1alpha1.ComposeStackSpec{
-					ForProvider: composev1alpha1.ComposeStackParameters{
+				Spec: composev1beta1.ComposeStackSpec{
+					ForProvider: composev1beta1.ComposeStackParameters{
 						// No compose content specified
 					},
 				},

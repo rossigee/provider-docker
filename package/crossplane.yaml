@@ -14,9 +14,8 @@ metadata:
       providing superior performance, reliability, and debugging capabilities.
 
       Features:
-      - v2-native architecture with dual-scope API support
+      - v2-native architecture with namespaced API support
       - Multi-tenant namespace isolation (v1beta1 APIs)
-      - Backward compatible cluster-scoped APIs (v1alpha1)
       - Container and Compose stack lifecycle management
       - Docker volume and network management
       - TLS-secured Docker daemon connections
@@ -28,7 +27,7 @@ metadata:
       # Crossplane Docker Provider (v2-Native)
 
       A v2-native Crossplane provider enabling declarative management of Docker resources
-      through Kubernetes with multi-tenancy support and dual-scope APIs.
+      through Kubernetes with multi-tenancy support and namespaced APIs.
 
       ## Installation
 
@@ -47,21 +46,19 @@ metadata:
 
       ## API Versions
 
-      **v1beta1 (Namespaced - Recommended)**:
+      **v1beta1 (Namespaced)**:
       - `container.docker.m.crossplane.io/v1beta1` - Multi-tenant containers
       - `compose.docker.m.crossplane.io/v1beta1` - Multi-tenant compose stacks
+      - `network.docker.m.crossplane.io/v1beta1` - Multi-tenant networks
+      - `volume.docker.m.crossplane.io/v1beta1` - Multi-tenant volumes
 
-      **v1alpha1 (Cluster-scoped - Backward Compatible)**:
-      - `container.docker.crossplane.io/v1alpha1` - Cluster-scoped containers
-      - `compose.docker.crossplane.io/v1alpha1` - Cluster-scoped compose stacks
-      
       ## Configuration
       
       Create a ProviderConfig to configure connection to your Docker daemon:
       
       ```bash
       kubectl apply -f - <<EOF
-      apiVersion: docker.crossplane.io/v1beta1
+      apiVersion: docker.m.crossplane.io/v1beta1
       kind: ProviderConfig
       metadata:
         name: default

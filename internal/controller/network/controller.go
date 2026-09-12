@@ -30,7 +30,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/docker/docker/api/types/network"
 	"github.com/pkg/errors"
-	networkv1alpha1 "github.com/rossigee/provider-docker/apis/network/v1alpha1"
+	networkv1beta1 "github.com/rossigee/provider-docker/apis/network/v1beta1"
 	"github.com/rossigee/provider-docker/internal/clients"
 	"github.com/rossigee/provider-docker/internal/tracing"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,7 +53,7 @@ const (
 
 // SetupNetwork adds a controller that reconciles Network managed resources.
 func SetupNetwork(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(networkv1alpha1.NetworkGroupKind.Kind)
+	name := managed.ControllerName(networkv1beta1.NetworkGroupKind.Kind)
 
 	opts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
@@ -71,7 +71,7 @@ func SetupNetwork(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(networkv1alpha1.NetworkGroupVersionKind),
+		resource.ManagedKind(networkv1beta1.NetworkGroupVersionKind),
 		opts...,
 	)
 
@@ -79,7 +79,7 @@ func SetupNetwork(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&networkv1alpha1.Network{}).
+		For(&networkv1beta1.Network{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
@@ -97,7 +97,7 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	_, ok := mg.(*networkv1alpha1.Network)
+	_, ok := mg.(*networkv1beta1.Network)
 	if !ok {
 		return nil, errors.New(errNotNetwork)
 	}
@@ -126,7 +126,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		tracing.SpanAttrs("network", mg.GetName(), "observe")...)
 	defer span.End()
 
-	cr, ok := mg.(*networkv1alpha1.Network)
+	cr, ok := mg.(*networkv1beta1.Network)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotNetwork)
 	}
@@ -161,7 +161,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		tracing.SpanAttrs("network", mg.GetName(), "create")...)
 	defer span.End()
 
-	cr, ok := mg.(*networkv1alpha1.Network)
+	cr, ok := mg.(*networkv1beta1.Network)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotNetwork)
 	}
@@ -199,7 +199,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 		tracing.SpanAttrs("network", mg.GetName(), "delete")...)
 	defer span.End()
 
-	cr, ok := mg.(*networkv1alpha1.Network)
+	cr, ok := mg.(*networkv1beta1.Network)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotNetwork)
 	}
@@ -220,7 +220,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 // buildCreateOptions constructs network creation options from the managed resource spec.
-func (c *external) buildCreateOptions(cr *networkv1alpha1.Network) (string, network.CreateOptions) {
+func (c *external) buildCreateOptions(cr *networkv1beta1.Network) (string, network.CreateOptions) {
 	spec := cr.Spec.ForProvider
 
 	opts := network.CreateOptions{
@@ -271,7 +271,7 @@ func (c *external) buildCreateOptions(cr *networkv1alpha1.Network) (string, netw
 }
 
 // updateStatus updates the network status with observed values.
-func (c *external) updateStatus(cr *networkv1alpha1.Network, netInspect network.Inspect) {
+func (c *external) updateStatus(cr *networkv1beta1.Network, netInspect network.Inspect) {
 	cr.Status.AtProvider.ID = netInspect.ID
 	cr.Status.AtProvider.Name = netInspect.Name
 	cr.Status.AtProvider.Driver = netInspect.Driver
@@ -290,13 +290,13 @@ func (c *external) updateStatus(cr *networkv1alpha1.Network, netInspect network.
 
 	// Set IPAM configuration
 	if netInspect.IPAM.Driver != "" {
-		cr.Status.AtProvider.IPAM = &networkv1alpha1.IPAMConfig{
+		cr.Status.AtProvider.IPAM = &networkv1beta1.IPAMConfig{
 			Driver:  &netInspect.IPAM.Driver,
 			Options: netInspect.IPAM.Options,
 		}
 
 		for _, cfg := range netInspect.IPAM.Config {
-			ipamEntry := networkv1alpha1.IPAMConfigEntry{}
+			ipamEntry := networkv1beta1.IPAMConfigEntry{}
 			if cfg.Subnet != "" {
 				ipamEntry.Subnet = &cfg.Subnet
 			}
@@ -315,9 +315,9 @@ func (c *external) updateStatus(cr *networkv1alpha1.Network, netInspect network.
 
 	// Set container information
 	if netInspect.Containers != nil {
-		cr.Status.AtProvider.Containers = make(map[string]*networkv1alpha1.NetworkContainer)
+		cr.Status.AtProvider.Containers = make(map[string]*networkv1beta1.NetworkContainer)
 		for id, container := range netInspect.Containers {
-			cr.Status.AtProvider.Containers[id] = &networkv1alpha1.NetworkContainer{
+			cr.Status.AtProvider.Containers[id] = &networkv1beta1.NetworkContainer{
 				Name:        container.Name,
 				EndpointID:  container.EndpointID,
 				MacAddress:  container.MacAddress,
@@ -331,7 +331,7 @@ func (c *external) updateStatus(cr *networkv1alpha1.Network, netInspect network.
 }
 
 // isUpToDate checks if the current network matches the desired specification.
-func (c *external) isUpToDate(cr *networkv1alpha1.Network, netInspect network.Inspect) bool {
+func (c *external) isUpToDate(cr *networkv1beta1.Network, netInspect network.Inspect) bool {
 	spec := cr.Spec.ForProvider
 
 	// Check driver

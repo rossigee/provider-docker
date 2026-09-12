@@ -31,7 +31,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/pkg/errors"
-	volumev1alpha1 "github.com/rossigee/provider-docker/apis/volume/v1alpha1"
+	volumev1beta1 "github.com/rossigee/provider-docker/apis/volume/v1beta1"
 	"github.com/rossigee/provider-docker/internal/clients"
 	"github.com/rossigee/provider-docker/internal/tracing"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +54,7 @@ const (
 
 // SetupVolume adds a controller that reconciles Volume managed resources.
 func SetupVolume(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(volumev1alpha1.VolumeGroupKind.Kind)
+	name := managed.ControllerName(volumev1beta1.VolumeGroupKind.Kind)
 
 	opts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
@@ -72,7 +72,7 @@ func SetupVolume(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(volumev1alpha1.VolumeGroupVersionKind),
+		resource.ManagedKind(volumev1beta1.VolumeGroupVersionKind),
 		opts...,
 	)
 
@@ -80,7 +80,7 @@ func SetupVolume(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&volumev1alpha1.Volume{}).
+		For(&volumev1beta1.Volume{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
@@ -98,7 +98,7 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	_, ok := mg.(*volumev1alpha1.Volume)
+	_, ok := mg.(*volumev1beta1.Volume)
 	if !ok {
 		return nil, errors.New(errNotVolume)
 	}
@@ -127,7 +127,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		tracing.SpanAttrs("volume", mg.GetName(), "observe")...)
 	defer span.End()
 
-	cr, ok := mg.(*volumev1alpha1.Volume)
+	cr, ok := mg.(*volumev1beta1.Volume)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotVolume)
 	}
@@ -162,7 +162,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		tracing.SpanAttrs("volume", mg.GetName(), "create")...)
 	defer span.End()
 
-	cr, ok := mg.(*volumev1alpha1.Volume)
+	cr, ok := mg.(*volumev1beta1.Volume)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotVolume)
 	}
@@ -193,7 +193,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 		tracing.SpanAttrs("volume", mg.GetName(), "delete")...)
 	defer span.End()
 
-	cr, ok := mg.(*volumev1alpha1.Volume)
+	cr, ok := mg.(*volumev1beta1.Volume)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotVolume)
 	}
@@ -214,7 +214,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 // buildCreateOptions constructs volume creation options from the managed resource spec.
-func (c *external) buildCreateOptions(cr *volumev1alpha1.Volume) volume.CreateOptions {
+func (c *external) buildCreateOptions(cr *volumev1beta1.Volume) volume.CreateOptions {
 	spec := cr.Spec.ForProvider
 
 	opts := volume.CreateOptions{
@@ -234,7 +234,7 @@ func (c *external) buildCreateOptions(cr *volumev1alpha1.Volume) volume.CreateOp
 }
 
 // updateStatus updates the volume status with observed values.
-func (c *external) updateStatus(cr *volumev1alpha1.Volume, vol volume.Volume) {
+func (c *external) updateStatus(cr *volumev1beta1.Volume, vol volume.Volume) {
 	cr.Status.AtProvider.Name = vol.Name
 	cr.Status.AtProvider.Driver = vol.Driver
 	cr.Status.AtProvider.Mountpoint = vol.Mountpoint
@@ -251,7 +251,7 @@ func (c *external) updateStatus(cr *volumev1alpha1.Volume, vol volume.Volume) {
 
 	// Set usage data if available
 	if vol.UsageData != nil {
-		cr.Status.AtProvider.UsageData = &volumev1alpha1.VolumeUsageData{
+		cr.Status.AtProvider.UsageData = &volumev1beta1.VolumeUsageData{
 			Size:     vol.UsageData.Size,
 			RefCount: vol.UsageData.RefCount,
 		}
@@ -261,7 +261,7 @@ func (c *external) updateStatus(cr *volumev1alpha1.Volume, vol volume.Volume) {
 }
 
 // isUpToDate checks if the current volume matches the desired specification.
-func (c *external) isUpToDate(cr *volumev1alpha1.Volume, vol volume.Volume) bool {
+func (c *external) isUpToDate(cr *volumev1beta1.Volume, vol volume.Volume) bool {
 	spec := cr.Spec.ForProvider
 
 	// Check driver

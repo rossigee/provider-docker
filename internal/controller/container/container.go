@@ -38,7 +38,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
 	"github.com/rossigee/provider-docker/apis/container/v1beta1"
 	"github.com/rossigee/provider-docker/internal/clients"
 	"github.com/rossigee/provider-docker/internal/tracing"
@@ -62,7 +61,7 @@ const (
 
 // ContainerConfigBuilder builds Docker container configuration from Crossplane resources.
 type ContainerConfigBuilder interface {
-	BuildContainerConfig(cr *v1alpha1.Container) (*container.Config, *container.HostConfig, *network.NetworkingConfig, *specs.Platform, error)
+	BuildContainerConfig(cr *v1beta1.Container) (*container.Config, *container.HostConfig, *network.NetworkingConfig, *specs.Platform, error)
 }
 
 // defaultContainerConfigBuilder implements ContainerConfigBuilder.
@@ -75,7 +74,7 @@ func NewContainerConfigBuilder() ContainerConfigBuilder {
 
 // Setup adds a controller that reconciles Container managed resources.
 func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
-	name := managed.ControllerName(v1alpha1.ContainerGroupKind.Kind)
+	name := managed.ControllerName(v1beta1.ContainerGroupKind.Kind)
 
 	opts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
@@ -93,14 +92,14 @@ func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.ContainerGroupVersionKind),
+		resource.ManagedKind(v1beta1.ContainerGroupVersionKind),
 		opts...,
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
-		For(&v1alpha1.Container{}).
+		For(&v1beta1.Container{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
@@ -118,7 +117,7 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	if _, ok := mg.(*v1alpha1.Container); !ok {
+	if _, ok := mg.(*v1beta1.Container); !ok {
 		return nil, errors.New(errNotContainer)
 	}
 
@@ -156,7 +155,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		tracing.SpanAttrs("container", mg.GetName(), "observe")...)
 	defer span.End()
 
-	cr, ok := mg.(*v1alpha1.Container)
+	cr, ok := mg.(*v1beta1.Container)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotContainer)
 	}
@@ -194,7 +193,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		tracing.SpanAttrs("container", mg.GetName(), "create")...)
 	defer span.End()
 
-	cr, ok := mg.(*v1alpha1.Container)
+	cr, ok := mg.(*v1beta1.Container)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotContainer)
 	}
@@ -240,7 +239,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		tracing.SpanAttrs("container", mg.GetName(), "update")...)
 	defer span.End()
 
-	_, ok := mg.(*v1alpha1.Container)
+	_, ok := mg.(*v1beta1.Container)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotContainer)
 	}
@@ -256,7 +255,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 		tracing.SpanAttrs("container", mg.GetName(), "delete")...)
 	defer span.End()
 
-	cr, ok := mg.(*v1alpha1.Container)
+	cr, ok := mg.(*v1beta1.Container)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotContainer)
 	}
@@ -289,7 +288,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 // Helper functions
 
 // BuildContainerConfig implements ContainerConfigBuilder interface.
-func (b *defaultContainerConfigBuilder) BuildContainerConfig(cr *v1alpha1.Container) (*container.Config, *container.HostConfig, *network.NetworkingConfig, *specs.Platform, error) {
+func (b *defaultContainerConfigBuilder) BuildContainerConfig(cr *v1beta1.Container) (*container.Config, *container.HostConfig, *network.NetworkingConfig, *specs.Platform, error) {
 	config := &container.Config{
 		Image: cr.Spec.ForProvider.Image,
 	}
@@ -392,7 +391,7 @@ func (b *defaultContainerConfigBuilder) BuildContainerConfig(cr *v1alpha1.Contai
 }
 
 // buildPortConfiguration builds Docker port configuration from Crossplane port specs.
-func (b *defaultContainerConfigBuilder) buildPortConfiguration(ports []v1alpha1.PortSpec) (nat.PortSet, nat.PortMap, error) {
+func (b *defaultContainerConfigBuilder) buildPortConfiguration(ports []v1beta1.PortSpec) (nat.PortSet, nat.PortMap, error) {
 	exposedPorts := make(nat.PortSet)
 	portBindings := make(nat.PortMap)
 
@@ -422,7 +421,7 @@ func (b *defaultContainerConfigBuilder) buildPortConfiguration(ports []v1alpha1.
 }
 
 // buildVolumeConfiguration builds Docker volume configuration from Crossplane volume specs.
-func (b *defaultContainerConfigBuilder) buildVolumeConfiguration(volumes []v1alpha1.VolumeMount) ([]string, []mount.Mount, error) {
+func (b *defaultContainerConfigBuilder) buildVolumeConfiguration(volumes []v1beta1.VolumeMount) ([]string, []mount.Mount, error) {
 	binds := make([]string, 0)
 	mounts := make([]mount.Mount, 0)
 
@@ -512,7 +511,7 @@ func (b *defaultContainerConfigBuilder) buildVolumeConfiguration(volumes []v1alp
 }
 
 // buildNetworkConfiguration builds Docker network configuration from Crossplane network specs.
-func (b *defaultContainerConfigBuilder) buildNetworkConfiguration(networks []v1alpha1.NetworkAttachment) (*network.NetworkingConfig, error) {
+func (b *defaultContainerConfigBuilder) buildNetworkConfiguration(networks []v1beta1.NetworkAttachment) (*network.NetworkingConfig, error) {
 	if len(networks) == 0 {
 		return nil, nil
 	}
@@ -556,7 +555,7 @@ func (b *defaultContainerConfigBuilder) buildNetworkConfiguration(networks []v1a
 }
 
 // buildSecurityConfiguration builds Docker security configuration from Crossplane security context.
-func (b *defaultContainerConfigBuilder) buildSecurityConfiguration(securityContext *v1alpha1.SecurityContext, config *container.Config, hostConfig *container.HostConfig) error {
+func (b *defaultContainerConfigBuilder) buildSecurityConfiguration(securityContext *v1beta1.SecurityContext, config *container.Config, hostConfig *container.HostConfig) error {
 	if securityContext == nil {
 		return nil
 	}
@@ -665,7 +664,7 @@ func (b *defaultContainerConfigBuilder) buildSecurityConfiguration(securityConte
 }
 
 // buildHealthCheckConfiguration builds Docker health check configuration from Crossplane health check spec.
-func (b *defaultContainerConfigBuilder) buildHealthCheckConfiguration(healthCheck *v1alpha1.HealthCheck, config *container.Config) error {
+func (b *defaultContainerConfigBuilder) buildHealthCheckConfiguration(healthCheck *v1beta1.HealthCheck, config *container.Config) error {
 	if healthCheck == nil {
 		return nil
 	}
@@ -745,16 +744,16 @@ func parseByteSize(sizeStr string) (int64, error) {
 	return strconv.ParseInt(sizeStr, 10, 64)
 }
 
-func (c *external) updateStatus(cr *v1alpha1.Container, containerInfo *container.InspectResponse) {
+func (c *external) updateStatus(cr *v1beta1.Container, containerInfo *container.InspectResponse) {
 	// Initialize the observation
-	observation := v1alpha1.ContainerObservation{}
+	observation := v1beta1.ContainerObservation{}
 
 	// Basic container information
 	observation.ID = containerInfo.ID
 	observation.Name = containerInfo.Name
 
 	// Container state
-	observation.State = v1alpha1.ContainerState{
+	observation.State = v1beta1.ContainerState{
 		Status:     containerInfo.State.Status,
 		Running:    containerInfo.State.Running,
 		Paused:     containerInfo.State.Paused,
@@ -790,7 +789,7 @@ func (c *external) updateStatus(cr *v1alpha1.Container, containerInfo *container
 	}
 
 	// Image information
-	observation.Image = v1alpha1.ContainerImage{
+	observation.Image = v1beta1.ContainerImage{
 		Name: containerInfo.Config.Image,
 		ID:   containerInfo.Image,
 	}
@@ -823,7 +822,7 @@ func (c *external) updateStatus(cr *v1alpha1.Container, containerInfo *container
 	}
 }
 
-func (c *external) isUpToDate(cr *v1alpha1.Container, containerInfo *container.InspectResponse) bool {
+func (c *external) isUpToDate(cr *v1beta1.Container, containerInfo *container.InspectResponse) bool {
 	// Check if the container is based on the desired image
 	if containerInfo.Config.Image != cr.Spec.ForProvider.Image {
 		if c.logger != nil {
@@ -913,7 +912,7 @@ func (c *external) isUpToDate(cr *v1alpha1.Container, containerInfo *container.I
 }
 
 // isEnvironmentUpToDate compares expected environment variables with actual container environment.
-func (c *external) isEnvironmentUpToDate(expectedEnv []v1alpha1.EnvVar, actualEnv []string) bool {
+func (c *external) isEnvironmentUpToDate(expectedEnv []v1beta1.EnvVar, actualEnv []string) bool {
 	// Convert actual environment to a map for easier comparison
 	actualEnvMap := make(map[string]string)
 	for _, env := range actualEnv {
@@ -967,7 +966,7 @@ func (c *external) isLabelsUpToDate(expectedLabels map[string]string, actualLabe
 }
 
 // buildEnvironmentConfiguration builds environment variables from Crossplane env var specs.
-func (b *defaultContainerConfigBuilder) buildEnvironmentConfiguration(envVars []v1alpha1.EnvVar) ([]string, error) { //nolint:staticcheck
+func (b *defaultContainerConfigBuilder) buildEnvironmentConfiguration(envVars []v1beta1.EnvVar) ([]string, error) { //nolint:staticcheck
 	env := make([]string, 0, len(envVars))
 
 	for _, envVar := range envVars {
@@ -999,7 +998,7 @@ func (b *defaultContainerConfigBuilder) buildEnvironmentConfiguration(envVars []
 }
 
 // resolveEnvVarValue resolves environment variable value from ConfigMap or Secret.
-func (b *defaultContainerConfigBuilder) resolveEnvVarValue(envVarName string, valueFrom *v1alpha1.EnvVarSource) (string, error) { //nolint:staticcheck
+func (b *defaultContainerConfigBuilder) resolveEnvVarValue(envVarName string, valueFrom *v1beta1.EnvVarSource) (string, error) { //nolint:staticcheck
 	// NOTE: This is a placeholder implementation for MVP
 	// In a real implementation, we would need:
 	// 1. Access to Kubernetes client
@@ -1022,7 +1021,7 @@ func (b *defaultContainerConfigBuilder) resolveEnvVarValue(envVarName string, va
 }
 
 // isEnvVarOptional checks if an environment variable source is optional.
-func (b *defaultContainerConfigBuilder) isEnvVarOptional(valueFrom *v1alpha1.EnvVarSource) bool {
+func (b *defaultContainerConfigBuilder) isEnvVarOptional(valueFrom *v1beta1.EnvVarSource) bool {
 	if valueFrom.ConfigMapKeyRef != nil && valueFrom.ConfigMapKeyRef.Optional != nil {
 		return *valueFrom.ConfigMapKeyRef.Optional
 	}
@@ -1033,22 +1032,22 @@ func (b *defaultContainerConfigBuilder) isEnvVarOptional(valueFrom *v1alpha1.Env
 }
 
 // buildObservedPorts builds the observed port mappings from Docker container info.
-func (c *external) buildObservedPorts(containerInfo *container.InspectResponse) []v1alpha1.ContainerPort {
-	var ports []v1alpha1.ContainerPort
+func (c *external) buildObservedPorts(containerInfo *container.InspectResponse) []v1beta1.ContainerPort {
+	var ports []v1beta1.ContainerPort
 
 	if containerInfo.NetworkSettings == nil {
-		return []v1alpha1.ContainerPort{}
+		return []v1beta1.ContainerPort{}
 	}
 
 	// If no ports are defined, return empty slice not nil
 	if len(containerInfo.NetworkSettings.Ports) == 0 {
-		return []v1alpha1.ContainerPort{}
+		return []v1beta1.ContainerPort{}
 	}
 
 	for port, bindings := range containerInfo.NetworkSettings.Ports {
 		if len(bindings) == 0 {
 			// Port exposed but not bound to host
-			ports = append(ports, v1alpha1.ContainerPort{
+			ports = append(ports, v1beta1.ContainerPort{
 				PrivatePort: int32(port.Int()),
 				Type:        port.Proto(),
 			})
@@ -1057,7 +1056,7 @@ func (c *external) buildObservedPorts(containerInfo *container.InspectResponse) 
 
 		// Port bound to host
 		for _, binding := range bindings {
-			containerPort := v1alpha1.ContainerPort{
+			containerPort := v1beta1.ContainerPort{
 				PrivatePort: int32(port.Int()),
 				Type:        port.Proto(),
 				IP:          binding.HostIP,
@@ -1077,15 +1076,15 @@ func (c *external) buildObservedPorts(containerInfo *container.InspectResponse) 
 }
 
 // buildObservedNetworks builds the observed network attachments from Docker container info.
-func (c *external) buildObservedNetworks(containerInfo *container.InspectResponse) map[string]v1alpha1.NetworkInfo {
-	networks := make(map[string]v1alpha1.NetworkInfo)
+func (c *external) buildObservedNetworks(containerInfo *container.InspectResponse) map[string]v1beta1.NetworkInfo {
+	networks := make(map[string]v1beta1.NetworkInfo)
 
 	if containerInfo.NetworkSettings == nil {
 		return networks
 	}
 
 	for networkName, networkSettings := range containerInfo.NetworkSettings.Networks {
-		networkInfo := v1alpha1.NetworkInfo{
+		networkInfo := v1beta1.NetworkInfo{
 			NetworkID:           networkSettings.NetworkID,
 			EndpointID:          networkSettings.EndpointID,
 			Gateway:             networkSettings.Gateway,
@@ -1103,21 +1102,21 @@ func (c *external) buildObservedNetworks(containerInfo *container.InspectRespons
 }
 
 // buildObservedHealth builds the observed health status from Docker health info.
-func (c *external) buildObservedHealth(health *container.Health) *v1alpha1.ContainerHealth {
+func (c *external) buildObservedHealth(health *container.Health) *v1beta1.ContainerHealth {
 	if health == nil {
 		return nil
 	}
 
-	containerHealth := &v1alpha1.ContainerHealth{
+	containerHealth := &v1beta1.ContainerHealth{
 		Status:        health.Status,
 		FailingStreak: health.FailingStreak,
 	}
 
 	// Convert health check logs
 	if len(health.Log) > 0 {
-		containerHealth.Log = make([]v1alpha1.HealthCheckResult, len(health.Log))
+		containerHealth.Log = make([]v1beta1.HealthCheckResult, len(health.Log))
 		for i, log := range health.Log {
-			result := v1alpha1.HealthCheckResult{
+			result := v1beta1.HealthCheckResult{
 				ExitCode: log.ExitCode,
 				Output:   log.Output,
 			}
@@ -1148,126 +1147,4 @@ func isNotFound(err error) bool {
 	errorMessage := strings.ToLower(err.Error())
 	return strings.Contains(errorMessage, "not found") ||
 		strings.Contains(errorMessage, "no such container")
-}
-
-// SetupV1Beta1 creates a controller for the v1beta1 (namespaced) Container resource.
-func SetupV1Beta1(mgr ctrl.Manager, o xpcontroller.Options) error {
-	name := managed.ControllerName(v1beta1.ContainerGroupKind.Kind + "-v1beta1")
-
-	opts := []managed.ReconcilerOption{
-		managed.WithExternalConnector(&v1beta1Connector{
-			kube:   mgr.GetClient(),
-			usage:  resource.TrackerFn(func(ctx context.Context, mg resource.Managed) error { return nil }),
-			logger: o.Logger,
-		}),
-		managed.WithLogger(o.Logger.WithValues("controller", name)),
-		managed.WithPollInterval(o.PollInterval),
-		managed.WithRecorder(nil),
-	}
-
-	if o.Features != nil && o.Features.Enabled(feature.EnableBetaManagementPolicies) {
-		opts = append(opts, managed.WithManagementPolicies())
-	}
-
-	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1beta1.ContainerGroupVersionKind),
-		opts...,
-	)
-
-	return ctrl.NewControllerManagedBy(mgr).
-		Named(name).
-		WithOptions(o.ForControllerRuntime()).
-		For(&v1beta1.Container{}).
-		Complete(r)
-}
-
-// v1beta1Connector creates external connectors for v1beta1 Container resources.
-type v1beta1Connector struct {
-	kube   client.Client
-	usage  resource.Tracker
-	logger logging.Logger
-}
-
-// Connect returns an ExternalClient capable of interacting with Docker API.
-func (c *v1beta1Connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1beta1.Container)
-	if !ok {
-		return nil, errors.New(errNotContainer)
-	}
-
-	// Convert v1beta1 to v1alpha1 for business logic compatibility
-	v1alpha1Container := convertV1Beta1ToV1Alpha1(cr)
-
-	// Create Docker client (using the managed resource interface)
-	dockerClient, err := clients.NewDockerClient(ctx, c.kube, v1alpha1Container)
-	if err != nil {
-		return nil, errors.Wrap(err, errNewClient)
-	}
-
-	return &v1beta1External{
-		external: external{
-			client:        dockerClient,
-			configBuilder: &defaultContainerConfigBuilder{},
-			logger:        c.logger,
-		},
-		v1beta1Container:  cr,
-		v1alpha1Container: v1alpha1Container,
-	}, nil
-}
-
-// v1beta1External wraps the v1alpha1 external client for v1beta1 compatibility.
-type v1beta1External struct {
-	external
-	v1beta1Container  *v1beta1.Container
-	v1alpha1Container *v1alpha1.Container
-}
-
-// Observe observes the external resource.
-func (e *v1beta1External) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	// Use the v1alpha1 logic but update the v1beta1 resource
-	obs, err := e.external.Observe(ctx, e.v1alpha1Container)
-	if err != nil {
-		return obs, err
-	}
-
-	// Copy status from v1alpha1 to v1beta1
-	if obs.ResourceExists {
-		e.v1beta1Container.Status.AtProvider = v1beta1.ContainerObservation(e.v1alpha1Container.Status.AtProvider)
-	}
-
-	return obs, nil
-}
-
-// Create creates the external resource.
-func (e *v1beta1External) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	return e.external.Create(ctx, e.v1alpha1Container)
-}
-
-// Update updates the external resource.
-func (e *v1beta1External) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	return e.external.Update(ctx, e.v1alpha1Container)
-}
-
-// Delete deletes the external resource.
-func (e *v1beta1External) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
-	return e.external.Delete(ctx, e.v1alpha1Container)
-}
-
-// convertV1Beta1ToV1Alpha1 converts a v1beta1 Container to v1alpha1 for business logic reuse.
-func convertV1Beta1ToV1Alpha1(v1beta1Container *v1beta1.Container) *v1alpha1.Container {
-	return &v1alpha1.Container{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: v1alpha1.SchemeGroupVersion.String(),
-			Kind:       v1alpha1.ContainerKind,
-		},
-		ObjectMeta: v1beta1Container.ObjectMeta,
-		Spec: v1alpha1.ContainerSpec{
-			ManagedResourceSpec: v1beta1Container.Spec.ManagedResourceSpec,
-			ForProvider:         v1alpha1.ContainerParameters(v1beta1Container.Spec.ForProvider),
-		},
-		Status: v1alpha1.ContainerStatus{
-			ManagedResourceStatus: v1beta1Container.Status.ManagedResourceStatus,
-			AtProvider:            v1alpha1.ContainerObservation(v1beta1Container.Status.AtProvider),
-		},
-	}
 }

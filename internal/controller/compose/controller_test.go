@@ -29,7 +29,7 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	composev1alpha1 "github.com/rossigee/provider-docker/apis/compose/v1alpha1"
+	composev1beta1 "github.com/rossigee/provider-docker/apis/compose/v1beta1"
 	"github.com/rossigee/provider-docker/internal/compose"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -200,11 +200,11 @@ func TestExternal_Disconnect(t *testing.T) {
 func TestExternal_Observe(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
-	_ = composev1alpha1.SchemeBuilder.AddToScheme(scheme)
+	_ = composev1beta1.SchemeBuilder.AddToScheme(scheme)
 
 	tests := []struct {
 		name         string
-		cr           *composev1alpha1.ComposeStack
+		cr           *composev1beta1.ComposeStack
 		dockerClient *mockDockerClient
 		wantExists   bool
 		wantErr      bool
@@ -212,13 +212,13 @@ func TestExternal_Observe(t *testing.T) {
 	}{
 		{
 			name: "stack exists and is up to date",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
-				Spec: composev1alpha1.ComposeStackSpec{
-					ForProvider: composev1alpha1.ComposeStackParameters{
+				Spec: composev1beta1.ComposeStackSpec{
+					ForProvider: composev1beta1.ComposeStackParameters{
 						Compose: stringPtr(`
 version: '3.8'
 services:
@@ -258,13 +258,13 @@ services:
 		},
 		{
 			name: "stack does not exist",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "missing-stack",
 					Namespace: "default",
 				},
-				Spec: composev1alpha1.ComposeStackSpec{
-					ForProvider: composev1alpha1.ComposeStackParameters{
+				Spec: composev1beta1.ComposeStackSpec{
+					ForProvider: composev1beta1.ComposeStackParameters{
 						Compose: stringPtr(`
 version: '3.8'
 services:
@@ -284,13 +284,13 @@ services:
 		},
 		{
 			name: "docker inspect error",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
-				Spec: composev1alpha1.ComposeStackSpec{
-					ForProvider: composev1alpha1.ComposeStackParameters{
+				Spec: composev1beta1.ComposeStackSpec{
+					ForProvider: composev1beta1.ComposeStackParameters{
 						Compose: stringPtr(`
 version: '3.8'
 services:
@@ -309,7 +309,7 @@ services:
 		},
 		{
 			name: "invalid managed resource",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
@@ -357,23 +357,23 @@ services:
 func TestExternal_Create(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
-	_ = composev1alpha1.SchemeBuilder.AddToScheme(scheme)
+	_ = composev1beta1.SchemeBuilder.AddToScheme(scheme)
 
 	tests := []struct {
 		name         string
-		cr           *composev1alpha1.ComposeStack
+		cr           *composev1beta1.ComposeStack
 		dockerClient *mockDockerClient
 		wantErr      bool
 	}{
 		{
 			name: "successful create",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
-				Spec: composev1alpha1.ComposeStackSpec{
-					ForProvider: composev1alpha1.ComposeStackParameters{
+				Spec: composev1beta1.ComposeStackSpec{
+					ForProvider: composev1beta1.ComposeStackParameters{
 						Compose: stringPtr(`
 version: '3.8'
 services:
@@ -394,13 +394,13 @@ services:
 		},
 		{
 			name: "docker create error",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
-				Spec: composev1alpha1.ComposeStackSpec{
-					ForProvider: composev1alpha1.ComposeStackParameters{
+				Spec: composev1beta1.ComposeStackSpec{
+					ForProvider: composev1beta1.ComposeStackParameters{
 						Compose: stringPtr(`
 version: '3.8'
 services:
@@ -418,7 +418,7 @@ services:
 		},
 		{
 			name: "invalid managed resource",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
@@ -454,7 +454,7 @@ services:
 func TestExternal_Update(t *testing.T) {
 	ext := &external{}
 
-	_, err := ext.Update(context.Background(), &composev1alpha1.ComposeStack{})
+	_, err := ext.Update(context.Background(), &composev1beta1.ComposeStack{})
 
 	// Update should return ErrNotImplemented
 	if err == nil {
@@ -465,23 +465,23 @@ func TestExternal_Update(t *testing.T) {
 func TestExternal_Delete(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
-	_ = composev1alpha1.SchemeBuilder.AddToScheme(scheme)
+	_ = composev1beta1.SchemeBuilder.AddToScheme(scheme)
 
 	tests := []struct {
 		name         string
-		cr           *composev1alpha1.ComposeStack
+		cr           *composev1beta1.ComposeStack
 		dockerClient *mockDockerClient
 		wantErr      bool
 	}{
 		{
 			name: "successful delete",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
-				Spec: composev1alpha1.ComposeStackSpec{
-					ForProvider: composev1alpha1.ComposeStackParameters{
+				Spec: composev1beta1.ComposeStackSpec{
+					ForProvider: composev1beta1.ComposeStackParameters{
 						Compose: stringPtr(`
 version: '3.8'
 services:
@@ -508,13 +508,13 @@ services:
 		},
 		{
 			name: "docker remove error",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
-				Spec: composev1alpha1.ComposeStackSpec{
-					ForProvider: composev1alpha1.ComposeStackParameters{
+				Spec: composev1beta1.ComposeStackSpec{
+					ForProvider: composev1beta1.ComposeStackParameters{
 						Compose: stringPtr(`
 version: '3.8'
 services:
@@ -542,13 +542,13 @@ services:
 		},
 		{
 			name: "no containers to delete",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-stack",
 					Namespace: "default",
 				},
-				Spec: composev1alpha1.ComposeStackSpec{
-					ForProvider: composev1alpha1.ComposeStackParameters{
+				Spec: composev1beta1.ComposeStackSpec{
+					ForProvider: composev1beta1.ComposeStackParameters{
 						Compose: stringPtr(`
 version: '3.8'
 services:
@@ -589,12 +589,12 @@ services:
 func TestExternal_GetProjectName(t *testing.T) {
 	tests := []struct {
 		name string
-		cr   *composev1alpha1.ComposeStack
+		cr   *composev1beta1.ComposeStack
 		want string
 	}{
 		{
 			name: "basic project name",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-app",
 					Namespace: "default",
@@ -604,7 +604,7 @@ func TestExternal_GetProjectName(t *testing.T) {
 		},
 		{
 			name: "project name with namespace",
-			cr: &composev1alpha1.ComposeStack{
+			cr: &composev1beta1.ComposeStack{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "web-service",
 					Namespace: "production",

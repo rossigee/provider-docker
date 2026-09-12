@@ -27,7 +27,7 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/go-connections/nat"
 	"github.com/google/go-cmp/cmp"
-	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
+	"github.com/rossigee/provider-docker/apis/container/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -50,7 +50,7 @@ func boolPtr(b bool) *bool {
 
 func TestBuildPortConfiguration(t *testing.T) {
 	type args struct {
-		ports []v1alpha1.PortSpec
+		ports []v1beta1.PortSpec
 	}
 	type want struct {
 		exposedPorts nat.PortSet
@@ -64,7 +64,7 @@ func TestBuildPortConfiguration(t *testing.T) {
 	}{
 		"EmptyPorts": {
 			args: args{
-				ports: []v1alpha1.PortSpec{},
+				ports: []v1beta1.PortSpec{},
 			},
 			want: want{
 				exposedPorts: nat.PortSet{},
@@ -74,7 +74,7 @@ func TestBuildPortConfiguration(t *testing.T) {
 		},
 		"SingleTCPPort": {
 			args: args{
-				ports: []v1alpha1.PortSpec{
+				ports: []v1beta1.PortSpec{
 					{
 						ContainerPort: 8080,
 						HostPort:      func() *int32 { p := int32(8080); return &p }(),
@@ -96,7 +96,7 @@ func TestBuildPortConfiguration(t *testing.T) {
 		},
 		"MultiplePortsWithDifferentProtocols": {
 			args: args{
-				ports: []v1alpha1.PortSpec{
+				ports: []v1beta1.PortSpec{
 					{
 						ContainerPort: 8080,
 						HostPort:      func() *int32 { p := int32(8080); return &p }(),
@@ -127,7 +127,7 @@ func TestBuildPortConfiguration(t *testing.T) {
 		},
 		"PortWithHostIP": {
 			args: args{
-				ports: []v1alpha1.PortSpec{
+				ports: []v1beta1.PortSpec{
 					{
 						ContainerPort: 8080,
 						HostPort:      func() *int32 { p := int32(8080); return &p }(),
@@ -150,7 +150,7 @@ func TestBuildPortConfiguration(t *testing.T) {
 		},
 		"ExposedPortWithoutBinding": {
 			args: args{
-				ports: []v1alpha1.PortSpec{
+				ports: []v1beta1.PortSpec{
 					{
 						ContainerPort: 8080,
 						Protocol:      func() *string { p := "TCP"; return &p }(),
@@ -167,7 +167,7 @@ func TestBuildPortConfiguration(t *testing.T) {
 		},
 		"DefaultProtocol": {
 			args: args{
-				ports: []v1alpha1.PortSpec{
+				ports: []v1beta1.PortSpec{
 					{
 						ContainerPort: 8080,
 						HostPort:      func() *int32 { p := int32(8080); return &p }(),
@@ -210,7 +210,7 @@ func TestBuildPortConfiguration(t *testing.T) {
 
 func TestBuildVolumeConfiguration(t *testing.T) {
 	type args struct {
-		volumes []v1alpha1.VolumeMount
+		volumes []v1beta1.VolumeMount
 	}
 	type want struct {
 		binds  []string
@@ -224,7 +224,7 @@ func TestBuildVolumeConfiguration(t *testing.T) {
 	}{
 		"EmptyVolumes": {
 			args: args{
-				volumes: []v1alpha1.VolumeMount{},
+				volumes: []v1beta1.VolumeMount{},
 			},
 			want: want{
 				binds:  []string{},
@@ -234,12 +234,12 @@ func TestBuildVolumeConfiguration(t *testing.T) {
 		},
 		"HostPathVolume": {
 			args: args{
-				volumes: []v1alpha1.VolumeMount{
+				volumes: []v1beta1.VolumeMount{
 					{
 						Name:      "host-vol",
 						MountPath: "/data",
-						VolumeSource: v1alpha1.VolumeSource{
-							HostPath: &v1alpha1.HostPathVolumeSource{
+						VolumeSource: v1beta1.VolumeSource{
+							HostPath: &v1beta1.HostPathVolumeSource{
 								Path: "/host/data",
 							},
 						},
@@ -254,13 +254,13 @@ func TestBuildVolumeConfiguration(t *testing.T) {
 		},
 		"HostPathVolumeReadOnly": {
 			args: args{
-				volumes: []v1alpha1.VolumeMount{
+				volumes: []v1beta1.VolumeMount{
 					{
 						Name:      "host-vol",
 						MountPath: "/data",
 						ReadOnly:  func() *bool { b := true; return &b }(),
-						VolumeSource: v1alpha1.VolumeSource{
-							HostPath: &v1alpha1.HostPathVolumeSource{
+						VolumeSource: v1beta1.VolumeSource{
+							HostPath: &v1beta1.HostPathVolumeSource{
 								Path: "/host/data",
 							},
 						},
@@ -275,12 +275,12 @@ func TestBuildVolumeConfiguration(t *testing.T) {
 		},
 		"DockerVolume": {
 			args: args{
-				volumes: []v1alpha1.VolumeMount{
+				volumes: []v1beta1.VolumeMount{
 					{
 						Name:      "docker-vol",
 						MountPath: "/data",
-						VolumeSource: v1alpha1.VolumeSource{
-							Volume: &v1alpha1.VolumeVolumeSource{
+						VolumeSource: v1beta1.VolumeSource{
+							Volume: &v1beta1.VolumeVolumeSource{
 								VolumeName: "my-volume",
 							},
 						},
@@ -295,12 +295,12 @@ func TestBuildVolumeConfiguration(t *testing.T) {
 		},
 		"BindMountWithPropagation": {
 			args: args{
-				volumes: []v1alpha1.VolumeMount{
+				volumes: []v1beta1.VolumeMount{
 					{
 						Name:      "bind-vol",
 						MountPath: "/data",
-						VolumeSource: v1alpha1.VolumeSource{
-							Bind: &v1alpha1.BindVolumeSource{
+						VolumeSource: v1beta1.VolumeSource{
+							Bind: &v1beta1.BindVolumeSource{
 								SourcePath:  "/host/bind",
 								Propagation: func() *string { p := "shared"; return &p }(),
 							},
@@ -316,12 +316,12 @@ func TestBuildVolumeConfiguration(t *testing.T) {
 		},
 		"EmptyDirWithSize": {
 			args: args{
-				volumes: []v1alpha1.VolumeMount{
+				volumes: []v1beta1.VolumeMount{
 					{
 						Name:      "tmp-vol",
 						MountPath: "/tmp",
-						VolumeSource: v1alpha1.VolumeSource{
-							EmptyDir: &v1alpha1.EmptyDirVolumeSource{
+						VolumeSource: v1beta1.VolumeSource{
+							EmptyDir: &v1beta1.EmptyDirVolumeSource{
 								SizeLimit: func() *string { s := "100Mi"; return &s }(),
 							},
 						},
@@ -336,13 +336,13 @@ func TestBuildVolumeConfiguration(t *testing.T) {
 		},
 		"EmptyDirReadOnly": {
 			args: args{
-				volumes: []v1alpha1.VolumeMount{
+				volumes: []v1beta1.VolumeMount{
 					{
 						Name:      "tmp-vol",
 						MountPath: "/tmp",
 						ReadOnly:  func() *bool { b := true; return &b }(),
-						VolumeSource: v1alpha1.VolumeSource{
-							EmptyDir: &v1alpha1.EmptyDirVolumeSource{},
+						VolumeSource: v1beta1.VolumeSource{
+							EmptyDir: &v1beta1.EmptyDirVolumeSource{},
 						},
 					},
 				},
@@ -355,12 +355,12 @@ func TestBuildVolumeConfiguration(t *testing.T) {
 		},
 		"SecretVolumeSkipped": {
 			args: args{
-				volumes: []v1alpha1.VolumeMount{
+				volumes: []v1beta1.VolumeMount{
 					{
 						Name:      "secret-vol",
 						MountPath: "/secrets",
-						VolumeSource: v1alpha1.VolumeSource{
-							Secret: &v1alpha1.SecretVolumeSource{
+						VolumeSource: v1beta1.VolumeSource{
+							Secret: &v1beta1.SecretVolumeSource{
 								SecretName: "my-secret",
 							},
 						},
@@ -375,12 +375,12 @@ func TestBuildVolumeConfiguration(t *testing.T) {
 		},
 		"ConfigMapVolumeSkipped": {
 			args: args{
-				volumes: []v1alpha1.VolumeMount{
+				volumes: []v1beta1.VolumeMount{
 					{
 						Name:      "config-vol",
 						MountPath: "/config",
-						VolumeSource: v1alpha1.VolumeSource{
-							ConfigMap: &v1alpha1.ConfigMapVolumeSource{
+						VolumeSource: v1beta1.VolumeSource{
+							ConfigMap: &v1beta1.ConfigMapVolumeSource{
 								Name: "my-config",
 							},
 						},
@@ -395,12 +395,12 @@ func TestBuildVolumeConfiguration(t *testing.T) {
 		},
 		"MultipleVolumeTypes": {
 			args: args{
-				volumes: []v1alpha1.VolumeMount{
+				volumes: []v1beta1.VolumeMount{
 					{
 						Name:      "host-vol",
 						MountPath: "/host-data",
-						VolumeSource: v1alpha1.VolumeSource{
-							HostPath: &v1alpha1.HostPathVolumeSource{
+						VolumeSource: v1beta1.VolumeSource{
+							HostPath: &v1beta1.HostPathVolumeSource{
 								Path: "/host/data",
 							},
 						},
@@ -408,8 +408,8 @@ func TestBuildVolumeConfiguration(t *testing.T) {
 					{
 						Name:      "docker-vol",
 						MountPath: "/docker-data",
-						VolumeSource: v1alpha1.VolumeSource{
-							Volume: &v1alpha1.VolumeVolumeSource{
+						VolumeSource: v1beta1.VolumeSource{
+							Volume: &v1beta1.VolumeVolumeSource{
 								VolumeName: "my-volume",
 							},
 						},
@@ -417,8 +417,8 @@ func TestBuildVolumeConfiguration(t *testing.T) {
 					{
 						Name:      "tmp-vol",
 						MountPath: "/tmp",
-						VolumeSource: v1alpha1.VolumeSource{
-							EmptyDir: &v1alpha1.EmptyDirVolumeSource{},
+						VolumeSource: v1beta1.VolumeSource{
+							EmptyDir: &v1beta1.EmptyDirVolumeSource{},
 						},
 					},
 				},
@@ -547,7 +547,7 @@ func TestParseByteSize(t *testing.T) {
 
 func TestBuildNetworkConfiguration(t *testing.T) {
 	type args struct {
-		networks []v1alpha1.NetworkAttachment
+		networks []v1beta1.NetworkAttachment
 	}
 	type want struct {
 		hasConfig    bool // whether config should be non-nil
@@ -562,7 +562,7 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 	}{
 		"EmptyNetworks": {
 			args: args{
-				networks: []v1alpha1.NetworkAttachment{},
+				networks: []v1beta1.NetworkAttachment{},
 			},
 			want: want{
 				hasConfig:    false,
@@ -573,7 +573,7 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 		},
 		"SingleNetworkBasic": {
 			args: args{
-				networks: []v1alpha1.NetworkAttachment{
+				networks: []v1beta1.NetworkAttachment{
 					{
 						Name: "my-network",
 					},
@@ -588,7 +588,7 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 		},
 		"NetworkWithIPAddress": {
 			args: args{
-				networks: []v1alpha1.NetworkAttachment{
+				networks: []v1beta1.NetworkAttachment{
 					{
 						Name:      "my-network",
 						IPAddress: func() *string { ip := "192.168.1.100"; return &ip }(),
@@ -604,7 +604,7 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 		},
 		"NetworkWithIPv6Address": {
 			args: args{
-				networks: []v1alpha1.NetworkAttachment{
+				networks: []v1beta1.NetworkAttachment{
 					{
 						Name:        "my-network",
 						IPv6Address: func() *string { ip := "2001:db8::1"; return &ip }(),
@@ -620,7 +620,7 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 		},
 		"NetworkWithBothIPAddresses": {
 			args: args{
-				networks: []v1alpha1.NetworkAttachment{
+				networks: []v1beta1.NetworkAttachment{
 					{
 						Name:        "my-network",
 						IPAddress:   func() *string { ip := "192.168.1.100"; return &ip }(),
@@ -637,7 +637,7 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 		},
 		"NetworkWithAliases": {
 			args: args{
-				networks: []v1alpha1.NetworkAttachment{
+				networks: []v1beta1.NetworkAttachment{
 					{
 						Name:    "my-network",
 						Aliases: []string{"web", "frontend", "nginx"},
@@ -653,7 +653,7 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 		},
 		"NetworkWithLinks": {
 			args: args{
-				networks: []v1alpha1.NetworkAttachment{
+				networks: []v1beta1.NetworkAttachment{
 					{
 						Name:  "my-network",
 						Links: []string{"db:database", "cache:redis"},
@@ -669,7 +669,7 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 		},
 		"MultipleNetworks": {
 			args: args{
-				networks: []v1alpha1.NetworkAttachment{
+				networks: []v1beta1.NetworkAttachment{
 					{
 						Name:      "frontend-network",
 						IPAddress: func() *string { ip := "192.168.1.100"; return &ip }(),
@@ -809,7 +809,7 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 
 func TestBuildSecurityConfiguration(t *testing.T) {
 	type args struct {
-		securityContext *v1alpha1.SecurityContext
+		securityContext *v1beta1.SecurityContext
 	}
 	type want struct {
 		configUser       string            // expected user in config
@@ -844,7 +844,7 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 		},
 		"RunAsUserOnly": {
 			args: args{
-				securityContext: &v1alpha1.SecurityContext{
+				securityContext: &v1beta1.SecurityContext{
 					RunAsUser: func() *int64 { u := int64(1000); return &u }(),
 				},
 			},
@@ -860,7 +860,7 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 		},
 		"RunAsUserAndGroup": {
 			args: args{
-				securityContext: &v1alpha1.SecurityContext{
+				securityContext: &v1beta1.SecurityContext{
 					RunAsUser:  func() *int64 { u := int64(1000); return &u }(),
 					RunAsGroup: func() *int64 { g := int64(1000); return &g }(),
 				},
@@ -877,7 +877,7 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 		},
 		"RunAsGroupOnly": {
 			args: args{
-				securityContext: &v1alpha1.SecurityContext{
+				securityContext: &v1beta1.SecurityContext{
 					RunAsGroup: func() *int64 { g := int64(1000); return &g }(),
 				},
 			},
@@ -893,7 +893,7 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 		},
 		"ReadOnlyRootFilesystem": {
 			args: args{
-				securityContext: &v1alpha1.SecurityContext{
+				securityContext: &v1beta1.SecurityContext{
 					ReadOnlyRootFilesystem: func() *bool { b := true; return &b }(),
 				},
 			},
@@ -909,7 +909,7 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 		},
 		"DisallowPrivilegeEscalation": {
 			args: args{
-				securityContext: &v1alpha1.SecurityContext{
+				securityContext: &v1beta1.SecurityContext{
 					AllowPrivilegeEscalation: func() *bool { b := false; return &b }(),
 				},
 			},
@@ -925,8 +925,8 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 		},
 		"Capabilities": {
 			args: args{
-				securityContext: &v1alpha1.SecurityContext{
-					Capabilities: &v1alpha1.Capabilities{
+				securityContext: &v1beta1.SecurityContext{
+					Capabilities: &v1beta1.Capabilities{
 						Add:  []string{"NET_ADMIN", "SYS_TIME"},
 						Drop: []string{"ALL", "SETUID"},
 					},
@@ -944,8 +944,8 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 		},
 		"SELinuxOptions": {
 			args: args{
-				securityContext: &v1alpha1.SecurityContext{
-					SELinuxOptions: &v1alpha1.SELinuxOptions{
+				securityContext: &v1beta1.SecurityContext{
+					SELinuxOptions: &v1beta1.SELinuxOptions{
 						User:  func() *string { s := "system_u"; return &s }(),
 						Role:  func() *string { s := "system_r"; return &s }(),
 						Type:  func() *string { s := "container_t"; return &s }(),
@@ -966,8 +966,8 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 		},
 		"SeccompProfile": {
 			args: args{
-				securityContext: &v1alpha1.SecurityContext{
-					SeccompProfile: &v1alpha1.SeccompProfile{
+				securityContext: &v1beta1.SecurityContext{
+					SeccompProfile: &v1beta1.SeccompProfile{
 						Type: "RuntimeDefault",
 					},
 				},
@@ -985,8 +985,8 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 		},
 		"AppArmorProfile": {
 			args: args{
-				securityContext: &v1alpha1.SecurityContext{
-					AppArmorProfile: &v1alpha1.AppArmorProfile{
+				securityContext: &v1beta1.SecurityContext{
+					AppArmorProfile: &v1beta1.AppArmorProfile{
 						Type: "RuntimeDefault",
 					},
 				},
@@ -1004,23 +1004,23 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 		},
 		"CompleteSecurityContext": {
 			args: args{
-				securityContext: &v1alpha1.SecurityContext{
+				securityContext: &v1beta1.SecurityContext{
 					RunAsUser:                func() *int64 { u := int64(1000); return &u }(),
 					RunAsGroup:               func() *int64 { g := int64(1000); return &g }(),
 					RunAsNonRoot:             func() *bool { b := true; return &b }(),
 					ReadOnlyRootFilesystem:   func() *bool { b := true; return &b }(),
 					AllowPrivilegeEscalation: func() *bool { b := false; return &b }(),
-					Capabilities: &v1alpha1.Capabilities{
+					Capabilities: &v1beta1.Capabilities{
 						Add:  []string{"NET_BIND_SERVICE"},
 						Drop: []string{"ALL"},
 					},
-					SELinuxOptions: &v1alpha1.SELinuxOptions{
+					SELinuxOptions: &v1beta1.SELinuxOptions{
 						Type: func() *string { s := "container_t"; return &s }(),
 					},
-					SeccompProfile: &v1alpha1.SeccompProfile{
+					SeccompProfile: &v1beta1.SeccompProfile{
 						Type: "RuntimeDefault",
 					},
-					AppArmorProfile: &v1alpha1.AppArmorProfile{
+					AppArmorProfile: &v1beta1.AppArmorProfile{
 						Type: "RuntimeDefault",
 					},
 				},
@@ -1150,7 +1150,7 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 
 func TestBuildHealthCheckConfiguration(t *testing.T) {
 	type args struct {
-		healthCheck *v1alpha1.HealthCheck
+		healthCheck *v1beta1.HealthCheck
 	}
 	type want struct {
 		hasHealthCheck bool           // whether healthcheck should be set
@@ -1177,7 +1177,7 @@ func TestBuildHealthCheckConfiguration(t *testing.T) {
 		},
 		"BasicHealthCheck": {
 			args: args{
-				healthCheck: &v1alpha1.HealthCheck{
+				healthCheck: &v1beta1.HealthCheck{
 					Test: []string{"CMD", "curl", "-f", "http://localhost/health"},
 				},
 			},
@@ -1189,7 +1189,7 @@ func TestBuildHealthCheckConfiguration(t *testing.T) {
 		},
 		"HealthCheckWithInterval": {
 			args: args{
-				healthCheck: &v1alpha1.HealthCheck{
+				healthCheck: &v1beta1.HealthCheck{
 					Test:     []string{"CMD", "wget", "--spider", "http://localhost:8080/healthz"},
 					Interval: &metav1.Duration{Duration: 30 * time.Second},
 				},
@@ -1203,7 +1203,7 @@ func TestBuildHealthCheckConfiguration(t *testing.T) {
 		},
 		"HealthCheckWithTimeout": {
 			args: args{
-				healthCheck: &v1alpha1.HealthCheck{
+				healthCheck: &v1beta1.HealthCheck{
 					Test:    []string{"CMD", "nc", "-z", "localhost", "3306"},
 					Timeout: &metav1.Duration{Duration: 10 * time.Second},
 				},
@@ -1217,7 +1217,7 @@ func TestBuildHealthCheckConfiguration(t *testing.T) {
 		},
 		"HealthCheckWithStartPeriod": {
 			args: args{
-				healthCheck: &v1alpha1.HealthCheck{
+				healthCheck: &v1beta1.HealthCheck{
 					Test:        []string{"CMD", "redis-cli", "ping"},
 					StartPeriod: &metav1.Duration{Duration: 60 * time.Second},
 				},
@@ -1231,7 +1231,7 @@ func TestBuildHealthCheckConfiguration(t *testing.T) {
 		},
 		"HealthCheckWithRetries": {
 			args: args{
-				healthCheck: &v1alpha1.HealthCheck{
+				healthCheck: &v1beta1.HealthCheck{
 					Test:    []string{"CMD", "mysqladmin", "ping", "-h", "localhost"},
 					Retries: func() *int { r := 5; return &r }(),
 				},
@@ -1245,7 +1245,7 @@ func TestBuildHealthCheckConfiguration(t *testing.T) {
 		},
 		"CompleteHealthCheck": {
 			args: args{
-				healthCheck: &v1alpha1.HealthCheck{
+				healthCheck: &v1beta1.HealthCheck{
 					Test:        []string{"CMD", "curl", "-f", "http://localhost:8080/actuator/health"},
 					Interval:    &metav1.Duration{Duration: 30 * time.Second},
 					Timeout:     &metav1.Duration{Duration: 10 * time.Second},
@@ -1265,7 +1265,7 @@ func TestBuildHealthCheckConfiguration(t *testing.T) {
 		},
 		"ShellFormHealthCheck": {
 			args: args{
-				healthCheck: &v1alpha1.HealthCheck{
+				healthCheck: &v1beta1.HealthCheck{
 					Test: []string{"CMD-SHELL", "curl -f http://localhost/ || exit 1"},
 				},
 			},
@@ -1277,7 +1277,7 @@ func TestBuildHealthCheckConfiguration(t *testing.T) {
 		},
 		"EmptyTestCommand": {
 			args: args{
-				healthCheck: &v1alpha1.HealthCheck{
+				healthCheck: &v1beta1.HealthCheck{
 					Test: []string{},
 				},
 			},
@@ -1432,7 +1432,7 @@ func TestParseDuration(t *testing.T) {
 
 func TestBuildContainerConfig(t *testing.T) {
 	type args struct {
-		container *v1alpha1.Container
+		container *v1beta1.Container
 	}
 	type want struct {
 		configFields map[string]interface{} // Key fields to verify
@@ -1446,13 +1446,13 @@ func TestBuildContainerConfig(t *testing.T) {
 	}{
 		"BasicContainer": {
 			args: args{
-				container: &v1alpha1.Container{
+				container: &v1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-container",
 					},
-					Spec: v1alpha1.ContainerSpec{
+					Spec: v1beta1.ContainerSpec{
 						ManagedResourceSpec: xpv1.ManagedResourceSpec{},
-						ForProvider: v1alpha1.ContainerParameters{
+						ForProvider: v1beta1.ContainerParameters{
 							Image:   "nginx:latest",
 							Command: []string{"/bin/sh"},
 							Args:    []string{"-c", "echo hello"},
@@ -1470,15 +1470,15 @@ func TestBuildContainerConfig(t *testing.T) {
 		},
 		"ContainerWithPorts": {
 			args: args{
-				container: &v1alpha1.Container{
+				container: &v1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-container",
 					},
-					Spec: v1alpha1.ContainerSpec{
+					Spec: v1beta1.ContainerSpec{
 						ManagedResourceSpec: xpv1.ManagedResourceSpec{},
-						ForProvider: v1alpha1.ContainerParameters{
+						ForProvider: v1beta1.ContainerParameters{
 							Image: "nginx:latest",
-							Ports: []v1alpha1.PortSpec{
+							Ports: []v1beta1.PortSpec{
 								{
 									ContainerPort: 80,
 									HostPort:      func() *int32 { p := int32(8080); return &p }(),
@@ -1497,15 +1497,15 @@ func TestBuildContainerConfig(t *testing.T) {
 		},
 		"ContainerWithEnvironment": {
 			args: args{
-				container: &v1alpha1.Container{
+				container: &v1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-container",
 					},
-					Spec: v1alpha1.ContainerSpec{
+					Spec: v1beta1.ContainerSpec{
 						ManagedResourceSpec: xpv1.ManagedResourceSpec{},
-						ForProvider: v1alpha1.ContainerParameters{
+						ForProvider: v1beta1.ContainerParameters{
 							Image: "nginx:latest",
-							Environment: []v1alpha1.EnvVar{
+							Environment: []v1beta1.EnvVar{
 								{
 									Name:  "ENV_VAR1",
 									Value: func() *string { v := "value1"; return &v }(),
@@ -1579,7 +1579,7 @@ func TestBuildEnvironmentConfiguration(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		envVars  []v1alpha1.EnvVar
+		envVars  []v1beta1.EnvVar
 		expected []string
 		wantErr  bool
 		errMsg   string
@@ -1592,7 +1592,7 @@ func TestBuildEnvironmentConfiguration(t *testing.T) {
 		},
 		{
 			name: "SimpleEnvironmentVariables",
-			envVars: []v1alpha1.EnvVar{
+			envVars: []v1beta1.EnvVar{
 				{
 					Name:  "ENV1",
 					Value: stringPtr("value1"),
@@ -1607,7 +1607,7 @@ func TestBuildEnvironmentConfiguration(t *testing.T) {
 		},
 		{
 			name: "EnvironmentWithEmptyValue",
-			envVars: []v1alpha1.EnvVar{
+			envVars: []v1beta1.EnvVar{
 				{
 					Name:  "EMPTY_VAR",
 					Value: stringPtr(""),
@@ -1618,7 +1618,7 @@ func TestBuildEnvironmentConfiguration(t *testing.T) {
 		},
 		{
 			name: "EnvironmentWithSpecialCharacters",
-			envVars: []v1alpha1.EnvVar{
+			envVars: []v1beta1.EnvVar{
 				{
 					Name:  "SPECIAL_VAR",
 					Value: stringPtr("value with spaces and = signs"),
@@ -1629,11 +1629,11 @@ func TestBuildEnvironmentConfiguration(t *testing.T) {
 		},
 		{
 			name: "ConfigMapValueFrom",
-			envVars: []v1alpha1.EnvVar{
+			envVars: []v1beta1.EnvVar{
 				{
 					Name: "CONFIG_VAR",
-					ValueFrom: &v1alpha1.EnvVarSource{
-						ConfigMapKeyRef: &v1alpha1.ConfigMapKeySelector{
+					ValueFrom: &v1beta1.EnvVarSource{
+						ConfigMapKeyRef: &v1beta1.ConfigMapKeySelector{
 							Name: "my-config",
 							Key:  "config-key",
 						},
@@ -1646,11 +1646,11 @@ func TestBuildEnvironmentConfiguration(t *testing.T) {
 		},
 		{
 			name: "SecretValueFrom",
-			envVars: []v1alpha1.EnvVar{
+			envVars: []v1beta1.EnvVar{
 				{
 					Name: "SECRET_VAR",
-					ValueFrom: &v1alpha1.EnvVarSource{
-						SecretKeyRef: &v1alpha1.SecretKeySelector{
+					ValueFrom: &v1beta1.EnvVarSource{
+						SecretKeyRef: &v1beta1.SecretKeySelector{
 							Name: "my-secret",
 							Key:  "secret-key",
 						},
@@ -1663,7 +1663,7 @@ func TestBuildEnvironmentConfiguration(t *testing.T) {
 		},
 		{
 			name: "EnvironmentVariableWithoutValueOrValueFrom",
-			envVars: []v1alpha1.EnvVar{
+			envVars: []v1beta1.EnvVar{
 				{
 					Name: "INVALID_VAR",
 					// No Value or ValueFrom specified
@@ -1714,13 +1714,13 @@ func TestIsEnvVarOptional(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		valueFrom *v1alpha1.EnvVarSource
+		valueFrom *v1beta1.EnvVarSource
 		expected  bool
 	}{
 		{
 			name: "ConfigMapOptionalTrue",
-			valueFrom: &v1alpha1.EnvVarSource{
-				ConfigMapKeyRef: &v1alpha1.ConfigMapKeySelector{
+			valueFrom: &v1beta1.EnvVarSource{
+				ConfigMapKeyRef: &v1beta1.ConfigMapKeySelector{
 					Name:     "config",
 					Key:      "key",
 					Optional: boolPtr(true),
@@ -1730,8 +1730,8 @@ func TestIsEnvVarOptional(t *testing.T) {
 		},
 		{
 			name: "ConfigMapOptionalFalse",
-			valueFrom: &v1alpha1.EnvVarSource{
-				ConfigMapKeyRef: &v1alpha1.ConfigMapKeySelector{
+			valueFrom: &v1beta1.EnvVarSource{
+				ConfigMapKeyRef: &v1beta1.ConfigMapKeySelector{
 					Name:     "config",
 					Key:      "key",
 					Optional: boolPtr(false),
@@ -1741,8 +1741,8 @@ func TestIsEnvVarOptional(t *testing.T) {
 		},
 		{
 			name: "ConfigMapOptionalNil",
-			valueFrom: &v1alpha1.EnvVarSource{
-				ConfigMapKeyRef: &v1alpha1.ConfigMapKeySelector{
+			valueFrom: &v1beta1.EnvVarSource{
+				ConfigMapKeyRef: &v1beta1.ConfigMapKeySelector{
 					Name: "config",
 					Key:  "key",
 				},
@@ -1751,8 +1751,8 @@ func TestIsEnvVarOptional(t *testing.T) {
 		},
 		{
 			name: "SecretOptionalTrue",
-			valueFrom: &v1alpha1.EnvVarSource{
-				SecretKeyRef: &v1alpha1.SecretKeySelector{
+			valueFrom: &v1beta1.EnvVarSource{
+				SecretKeyRef: &v1beta1.SecretKeySelector{
 					Name:     "secret",
 					Key:      "key",
 					Optional: boolPtr(true),
@@ -1762,8 +1762,8 @@ func TestIsEnvVarOptional(t *testing.T) {
 		},
 		{
 			name: "SecretOptionalFalse",
-			valueFrom: &v1alpha1.EnvVarSource{
-				SecretKeyRef: &v1alpha1.SecretKeySelector{
+			valueFrom: &v1beta1.EnvVarSource{
+				SecretKeyRef: &v1beta1.SecretKeySelector{
 					Name:     "secret",
 					Key:      "key",
 					Optional: boolPtr(false),
@@ -1773,8 +1773,8 @@ func TestIsEnvVarOptional(t *testing.T) {
 		},
 		{
 			name: "SecretOptionalNil",
-			valueFrom: &v1alpha1.EnvVarSource{
-				SecretKeyRef: &v1alpha1.SecretKeySelector{
+			valueFrom: &v1beta1.EnvVarSource{
+				SecretKeyRef: &v1beta1.SecretKeySelector{
 					Name: "secret",
 					Key:  "key",
 				},

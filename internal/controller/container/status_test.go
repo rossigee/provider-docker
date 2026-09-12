@@ -26,7 +26,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
+	"github.com/rossigee/provider-docker/apis/container/v1beta1"
 	"github.com/rossigee/provider-docker/internal/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -34,17 +34,17 @@ import (
 func TestUpdateStatus(t *testing.T) {
 	tests := []struct {
 		name             string
-		container        *v1alpha1.Container
+		container        *v1beta1.Container
 		containerInfo    *container.InspectResponse
-		expectedStatus   *v1alpha1.ContainerStatus
-		validateFunction func(*v1alpha1.ContainerStatus) bool
+		expectedStatus   *v1beta1.ContainerStatus
+		validateFunction func(*v1beta1.ContainerStatus) bool
 	}{
 		{
 			name: "RunningContainer",
-			container: &v1alpha1.Container{
+			container: &v1beta1.Container{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-				Spec: v1alpha1.ContainerSpec{
-					ForProvider: v1alpha1.ContainerParameters{
+				Spec: v1beta1.ContainerSpec{
+					ForProvider: v1beta1.ContainerParameters{
 						Image: "nginx:latest",
 					},
 				},
@@ -72,7 +72,7 @@ func TestUpdateStatus(t *testing.T) {
 					},
 				},
 			},
-			validateFunction: func(status *v1alpha1.ContainerStatus) bool {
+			validateFunction: func(status *v1beta1.ContainerStatus) bool {
 				return status.AtProvider.ID == "abc123" &&
 					status.AtProvider.State.Status == "running" &&
 					status.AtProvider.Started != nil
@@ -80,10 +80,10 @@ func TestUpdateStatus(t *testing.T) {
 		},
 		{
 			name: "ExitedContainer",
-			container: &v1alpha1.Container{
+			container: &v1beta1.Container{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-				Spec: v1alpha1.ContainerSpec{
-					ForProvider: v1alpha1.ContainerParameters{
+				Spec: v1beta1.ContainerSpec{
+					ForProvider: v1beta1.ContainerParameters{
 						Image: "nginx:latest",
 					},
 				},
@@ -106,7 +106,7 @@ func TestUpdateStatus(t *testing.T) {
 					Image: "nginx:latest",
 				},
 			},
-			validateFunction: func(status *v1alpha1.ContainerStatus) bool {
+			validateFunction: func(status *v1beta1.ContainerStatus) bool {
 				return status.AtProvider.ID == "def456" &&
 					status.AtProvider.State.Status == "exited" &&
 					status.AtProvider.State.ExitCode == 1
@@ -114,12 +114,12 @@ func TestUpdateStatus(t *testing.T) {
 		},
 		{
 			name: "ContainerWithHealthCheck",
-			container: &v1alpha1.Container{
+			container: &v1beta1.Container{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-				Spec: v1alpha1.ContainerSpec{
-					ForProvider: v1alpha1.ContainerParameters{
+				Spec: v1beta1.ContainerSpec{
+					ForProvider: v1beta1.ContainerParameters{
 						Image: "nginx:latest",
-						HealthCheck: &v1alpha1.HealthCheck{
+						HealthCheck: &v1beta1.HealthCheck{
 							Test:     []string{"CMD", "curl", "-f", "http://localhost/health"},
 							Interval: &metav1.Duration{Duration: 30 * time.Second},
 						},
@@ -151,7 +151,7 @@ func TestUpdateStatus(t *testing.T) {
 					Image: "nginx:latest",
 				},
 			},
-			validateFunction: func(status *v1alpha1.ContainerStatus) bool {
+			validateFunction: func(status *v1beta1.ContainerStatus) bool {
 				return status.AtProvider.ID == "ghi789" &&
 					status.AtProvider.State.Status == "running"
 			},
@@ -174,18 +174,18 @@ func TestUpdateStatus(t *testing.T) {
 func TestIsUpToDate(t *testing.T) {
 	tests := []struct {
 		name          string
-		container     *v1alpha1.Container
+		container     *v1beta1.Container
 		containerInfo *container.InspectResponse
 		expected      bool
 	}{
 		{
 			name: "UpToDateContainer",
-			container: &v1alpha1.Container{
+			container: &v1beta1.Container{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-				Spec: v1alpha1.ContainerSpec{
-					ForProvider: v1alpha1.ContainerParameters{
+				Spec: v1beta1.ContainerSpec{
+					ForProvider: v1beta1.ContainerParameters{
 						Image: "nginx:latest",
-						Environment: []v1alpha1.EnvVar{
+						Environment: []v1beta1.EnvVar{
 							{Name: "TEST_VAR", Value: stringPtrStatusStatus("test_value")},
 						},
 						Labels: map[string]string{
@@ -210,10 +210,10 @@ func TestIsUpToDate(t *testing.T) {
 		},
 		{
 			name: "OutdatedImage",
-			container: &v1alpha1.Container{
+			container: &v1beta1.Container{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-				Spec: v1alpha1.ContainerSpec{
-					ForProvider: v1alpha1.ContainerParameters{
+				Spec: v1beta1.ContainerSpec{
+					ForProvider: v1beta1.ContainerParameters{
 						Image: "nginx:1.21",
 					},
 				},
@@ -230,12 +230,12 @@ func TestIsUpToDate(t *testing.T) {
 		},
 		{
 			name: "OutdatedEnvironment",
-			container: &v1alpha1.Container{
+			container: &v1beta1.Container{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-				Spec: v1alpha1.ContainerSpec{
-					ForProvider: v1alpha1.ContainerParameters{
+				Spec: v1beta1.ContainerSpec{
+					ForProvider: v1beta1.ContainerParameters{
 						Image: "nginx:latest",
-						Environment: []v1alpha1.EnvVar{
+						Environment: []v1beta1.EnvVar{
 							{Name: "TEST_VAR", Value: stringPtrStatus("new_value")},
 						},
 					},
@@ -254,10 +254,10 @@ func TestIsUpToDate(t *testing.T) {
 		},
 		{
 			name: "OutdatedLabels",
-			container: &v1alpha1.Container{
+			container: &v1beta1.Container{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-				Spec: v1alpha1.ContainerSpec{
-					ForProvider: v1alpha1.ContainerParameters{
+				Spec: v1beta1.ContainerSpec{
+					ForProvider: v1beta1.ContainerParameters{
 						Image: "nginx:latest",
 						Labels: map[string]string{
 							"app":     "test",
@@ -297,21 +297,21 @@ func TestIsUpToDate(t *testing.T) {
 func TestIsEnvironmentUpToDate(t *testing.T) {
 	tests := []struct {
 		name        string
-		desired     []v1alpha1.EnvVar
+		desired     []v1beta1.EnvVar
 		actual      []string
 		expected    bool
 		description string
 	}{
 		{
 			name:        "EmptyEnvironments",
-			desired:     []v1alpha1.EnvVar{},
+			desired:     []v1beta1.EnvVar{},
 			actual:      []string{},
 			expected:    true,
 			description: "Both environments are empty",
 		},
 		{
 			name: "MatchingEnvironments",
-			desired: []v1alpha1.EnvVar{
+			desired: []v1beta1.EnvVar{
 				{Name: "VAR1", Value: stringPtrStatus("value1")},
 				{Name: "VAR2", Value: stringPtrStatus("value2")},
 			},
@@ -321,7 +321,7 @@ func TestIsEnvironmentUpToDate(t *testing.T) {
 		},
 		{
 			name: "ExtraActualVar",
-			desired: []v1alpha1.EnvVar{
+			desired: []v1beta1.EnvVar{
 				{Name: "VAR1", Value: stringPtrStatus("value1")},
 			},
 			actual:      []string{"VAR1=value1", "VAR2=value2"},
@@ -330,7 +330,7 @@ func TestIsEnvironmentUpToDate(t *testing.T) {
 		},
 		{
 			name: "MissingDesiredVar",
-			desired: []v1alpha1.EnvVar{
+			desired: []v1beta1.EnvVar{
 				{Name: "VAR1", Value: stringPtrStatus("value1")},
 				{Name: "VAR2", Value: stringPtrStatus("value2")},
 			},
@@ -340,7 +340,7 @@ func TestIsEnvironmentUpToDate(t *testing.T) {
 		},
 		{
 			name: "DifferentValue",
-			desired: []v1alpha1.EnvVar{
+			desired: []v1beta1.EnvVar{
 				{Name: "VAR1", Value: stringPtrStatus("value1")},
 			},
 			actual:      []string{"VAR1=different_value"},
@@ -349,7 +349,7 @@ func TestIsEnvironmentUpToDate(t *testing.T) {
 		},
 		{
 			name: "EmptyValue",
-			desired: []v1alpha1.EnvVar{
+			desired: []v1beta1.EnvVar{
 				{Name: "VAR1", Value: stringPtrStatus("")},
 			},
 			actual:      []string{"VAR1="},
@@ -467,14 +467,14 @@ func TestBuildObservedPorts(t *testing.T) {
 	tests := []struct {
 		name          string
 		containerInfo *container.InspectResponse
-		expected      []v1alpha1.ContainerPort
+		expected      []v1beta1.ContainerPort
 	}{
 		{
 			name: "EmptyPortMap",
 			containerInfo: &container.InspectResponse{
 				NetworkSettings: &container.NetworkSettings{},
 			},
-			expected: []v1alpha1.ContainerPort{},
+			expected: []v1beta1.ContainerPort{},
 		},
 		{
 			name: "SinglePort",
@@ -489,7 +489,7 @@ func TestBuildObservedPorts(t *testing.T) {
 					},
 				},
 			},
-			expected: []v1alpha1.ContainerPort{
+			expected: []v1beta1.ContainerPort{
 				{
 					PrivatePort: 80,
 					Type:        "tcp",
@@ -517,7 +517,7 @@ func TestBuildObservedPorts(t *testing.T) {
 					},
 				},
 			},
-			expected: []v1alpha1.ContainerPort{
+			expected: []v1beta1.ContainerPort{
 				{PrivatePort: 80, Type: "tcp", IP: "0.0.0.0", PublicPort: 8080},
 				{PrivatePort: 443, Type: "tcp", IP: "127.0.0.1", PublicPort: 8443},
 				{PrivatePort: 53, Type: "udp", IP: "0.0.0.0", PublicPort: 5353},
@@ -537,7 +537,7 @@ func TestBuildObservedPorts(t *testing.T) {
 					},
 				},
 			},
-			expected: []v1alpha1.ContainerPort{
+			expected: []v1beta1.ContainerPort{
 				{PrivatePort: 80, Type: "tcp", IP: "0.0.0.0", PublicPort: 8080},
 				{PrivatePort: 80, Type: "tcp", IP: "127.0.0.1", PublicPort: 8081},
 			},
@@ -555,7 +555,7 @@ func TestBuildObservedPorts(t *testing.T) {
 			}
 
 			// Sort both slices for comparison since order might vary
-			sortPorts := func(ports []v1alpha1.ContainerPort) {
+			sortPorts := func(ports []v1beta1.ContainerPort) {
 				sort.Slice(ports, func(i, j int) bool {
 					if ports[i].PrivatePort != ports[j].PrivatePort {
 						return ports[i].PrivatePort < ports[j].PrivatePort
@@ -577,7 +577,7 @@ func TestBuildObservedNetworks(t *testing.T) {
 	tests := []struct {
 		name          string
 		containerInfo *container.InspectResponse
-		expected      map[string]v1alpha1.NetworkInfo
+		expected      map[string]v1beta1.NetworkInfo
 	}{
 		{
 			name: "EmptyNetworks",
@@ -586,7 +586,7 @@ func TestBuildObservedNetworks(t *testing.T) {
 					Networks: map[string]*network.EndpointSettings{},
 				},
 			},
-			expected: map[string]v1alpha1.NetworkInfo{},
+			expected: map[string]v1beta1.NetworkInfo{},
 		},
 		{
 			name: "SingleNetwork",
@@ -600,7 +600,7 @@ func TestBuildObservedNetworks(t *testing.T) {
 					},
 				},
 			},
-			expected: map[string]v1alpha1.NetworkInfo{
+			expected: map[string]v1beta1.NetworkInfo{
 				"bridge": {
 					IPAddress: "172.17.0.2",
 					Gateway:   "172.17.0.1",
@@ -623,7 +623,7 @@ func TestBuildObservedNetworks(t *testing.T) {
 					},
 				},
 			},
-			expected: map[string]v1alpha1.NetworkInfo{
+			expected: map[string]v1beta1.NetworkInfo{
 				"bridge": {IPAddress: "172.17.0.2", Gateway: "172.17.0.1"},
 				"custom": {IPAddress: "192.168.1.10", Gateway: "192.168.1.1"},
 			},

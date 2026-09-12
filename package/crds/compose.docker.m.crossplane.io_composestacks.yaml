@@ -12,8 +12,6 @@ spec:
     - crossplane
     - managed
     - docker
-    - compose
-    - v2
     kind: ComposeStack
     listKind: ComposeStackList
     plural: composestacks
@@ -21,26 +19,21 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .status.atProvider.projectName
+      name: PROJECT
+      type: string
+    - jsonPath: .status.atProvider.services.length
+      name: SERVICES
+      type: integer
     - jsonPath: .status.conditions[?(@.type=='Ready')].status
       name: READY
       type: string
     - jsonPath: .status.conditions[?(@.type=='Synced')].status
       name: SYNCED
       type: string
-    - jsonPath: .metadata.annotations.crossplane.io/external-name
-      name: EXTERNAL-NAME
-      type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
-    - jsonPath: .spec.forProvider.projectName
-      name: PROJECT
-      priority: 1
-      type: string
-    - jsonPath: .status.atProvider.services
-      name: SERVICES
-      priority: 1
-      type: string
     name: v1beta1
     schema:
       openAPIV3Schema:

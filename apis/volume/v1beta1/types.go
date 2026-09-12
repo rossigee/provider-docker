@@ -18,7 +18,6 @@ package v1beta1
 
 import (
 	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
-	"github.com/rossigee/provider-docker/apis/volume/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -31,9 +30,27 @@ type VolumeSpec struct {
 }
 
 // VolumeParameters are the configurable fields of a Volume.
-// This type reuses the v1alpha1 definition for consistency while maintaining
-// the namespaced v1beta1 API surface.
-type VolumeParameters v1alpha1.VolumeParameters
+type VolumeParameters struct {
+	// Name is the volume name. If not specified, the resource name will be used.
+	// +optional
+	Name *string `json:"name,omitempty"`
+
+	// Driver specifies the volume driver to use.
+	// Common drivers: local, nfs, tmpfs, overlay2
+	// +kubebuilder:default="local"
+	// +optional
+	Driver *string `json:"driver,omitempty"`
+
+	// DriverOpts is a map of driver-specific options.
+	// For local driver: type, o, device
+	// For nfs driver: addr, path
+	// +optional
+	DriverOpts map[string]string `json:"driverOpts,omitempty"`
+
+	// Labels is a map of labels to apply to the volume.
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+}
 
 // A VolumeStatus represents the observed state of a Volume.
 type VolumeStatus struct {
@@ -44,14 +61,44 @@ type VolumeStatus struct {
 }
 
 // VolumeObservation are the observable fields of a Volume.
-// This type reuses the v1alpha1 definition for consistency.
-type VolumeObservation v1alpha1.VolumeObservation
+type VolumeObservation struct {
+	// Name is the actual volume name.
+	Name string `json:"name,omitempty"`
+
+	// Driver is the volume driver being used.
+	Driver string `json:"driver,omitempty"`
+
+	// Mountpoint is the path where the volume is mounted on the host.
+	Mountpoint string `json:"mountpoint,omitempty"`
+
+	// CreatedAt is the timestamp when the volume was created.
+	CreatedAt *metav1.Time `json:"createdAt,omitempty"`
+
+	// Scope indicates the scope of the volume (local or global).
+	Scope string `json:"scope,omitempty"`
+
+	// Options are the driver-specific options for the volume.
+	Options map[string]string `json:"options,omitempty"`
+
+	// Labels are the labels applied to the volume.
+	Labels map[string]string `json:"labels,omitempty"`
+
+	// UsageData contains information about volume usage.
+	UsageData *VolumeUsageData `json:"usageData,omitempty"`
+}
+
+// VolumeUsageData contains information about volume usage.
+type VolumeUsageData struct {
+	// Size is the amount of space used by the volume (in bytes).
+	Size int64 `json:"size,omitempty"`
+
+	// RefCount is the number of containers using this volume.
+	RefCount int64 `json:"refCount,omitempty"`
+}
 
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
 
 // A Volume is a managed resource that represents a Docker volume.
-// This is the namespaced v1beta1 version following Crossplane v2 patterns.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
@@ -59,7 +106,7 @@ type VolumeObservation v1alpha1.VolumeObservation
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="DRIVER",type="string",JSONPath=".status.atProvider.driver",priority=1
 // +kubebuilder:printcolumn:name="MOUNTPOINT",type="string",JSONPath=".status.atProvider.mountpoint",priority=1
-// +kubebuilder:resource:scope=Namespaced,categories={crossplane,managed,docker,v2}
+// +kubebuilder:resource:scope=Cluster,categories={crossplane,managed,docker}
 type Volume struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

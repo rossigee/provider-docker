@@ -45,7 +45,7 @@ The Docker provider enables declarative management of Docker resources through K
 
 ### Local Docker (Unix Socket)
 ```yaml
-apiVersion: docker.crossplane.io/v1beta1
+apiVersion: docker.m.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: local
@@ -55,7 +55,7 @@ spec:
 
 ### Remote Docker (TCP with TLS)
 ```yaml
-apiVersion: docker.crossplane.io/v1beta1
+apiVersion: docker.m.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: remote

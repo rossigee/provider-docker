@@ -33,27 +33,22 @@ func Setup(mgr ctrl.Manager, o xpcontroller.Options) error {
 		return err
 	}
 
-	// Setup v1alpha1 container controller (cluster-scoped for backwards compatibility)
+	// Setup container controller (v2 namespaced)
 	if err := container.Setup(mgr, o); err != nil {
 		return err
 	}
 
-	// Setup v1beta1 container controller (namespaced for v2 compatibility)
-	if err := container.SetupV1Beta1(mgr, o); err != nil {
-		return err
-	}
-
-	// Setup compose controllers (v1alpha1 only for now)
+	// Setup compose controllers (v2 namespaced)
 	if err := compose.Setup(mgr, o); err != nil {
 		return err
 	}
 
-	// Setup volume controllers (v1alpha1 cluster-scoped)
+	// Setup volume controllers (v2 namespaced)
 	if err := volume.SetupVolume(mgr, o); err != nil {
 		return err
 	}
 
-	// Setup network controllers (v1alpha1 cluster-scoped)
+	// Setup network controllers (v2 namespaced)
 	if err := network.SetupNetwork(mgr, o); err != nil {
 		return err
 	}

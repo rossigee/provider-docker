@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
-	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
+	containerv1beta1 "github.com/rossigee/provider-docker/apis/container/v1beta1"
 	v1beta1 "github.com/rossigee/provider-docker/apis/v1beta1"
 
 	corev1 "k8s.io/api/core/v1"
@@ -38,13 +38,13 @@ func TestDockerClientInterface(t *testing.T) {
 func TestGetProviderConfig(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = v1beta1.SchemeBuilder.AddToScheme(scheme)
-	_ = v1alpha1.SchemeBuilder.AddToScheme(scheme)
+	_ = containerv1beta1.SchemeBuilder.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
 
 	tests := []struct {
 		name         string
 		prepareFunc  func() *fake.ClientBuilder
-		setupMG      func() *v1alpha1.Container
+		setupMG      func() *containerv1beta1.Container
 		wantError    bool
 		errorMsg     string
 		validateSpec func(*v1beta1.ProviderConfigSpec) bool
@@ -63,10 +63,10 @@ func TestGetProviderConfig(t *testing.T) {
 					},
 				)
 			},
-			setupMG: func() *v1alpha1.Container {
-				return &v1alpha1.Container{
+			setupMG: func() *containerv1beta1.Container {
+				return &containerv1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-					Spec: v1alpha1.ContainerSpec{
+					Spec: containerv1beta1.ContainerSpec{
 						ManagedResourceSpec: xpv1.ManagedResourceSpec{
 							ProviderConfigReference: &xpv1.ProviderConfigReference{Name: "test-config"},
 						},
@@ -83,10 +83,10 @@ func TestGetProviderConfig(t *testing.T) {
 			prepareFunc: func() *fake.ClientBuilder {
 				return fake.NewClientBuilder().WithScheme(scheme)
 			},
-			setupMG: func() *v1alpha1.Container {
-				return &v1alpha1.Container{
+			setupMG: func() *containerv1beta1.Container {
+				return &containerv1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-					Spec: v1alpha1.ContainerSpec{
+					Spec: containerv1beta1.ContainerSpec{
 						ManagedResourceSpec: xpv1.ManagedResourceSpec{
 							ProviderConfigReference: &xpv1.ProviderConfigReference{Name: "nonexistent"},
 						},
@@ -101,10 +101,10 @@ func TestGetProviderConfig(t *testing.T) {
 			prepareFunc: func() *fake.ClientBuilder {
 				return fake.NewClientBuilder().WithScheme(scheme)
 			},
-			setupMG: func() *v1alpha1.Container {
-				return &v1alpha1.Container{
+			setupMG: func() *containerv1beta1.Container {
+				return &containerv1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-					Spec: v1alpha1.ContainerSpec{
+					Spec: containerv1beta1.ContainerSpec{
 						ManagedResourceSpec: xpv1.ManagedResourceSpec{
 							// No ProviderConfigReference
 						},
@@ -253,14 +253,14 @@ func TestExtractCredentials(t *testing.T) {
 
 func TestNewDockerClient(t *testing.T) {
 	scheme := runtime.NewScheme()
-	_ = v1alpha1.SchemeBuilder.AddToScheme(scheme)
 	_ = v1beta1.SchemeBuilder.AddToScheme(scheme)
+	_ = containerv1beta1.SchemeBuilder.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
 
 	tests := []struct {
 		name        string
 		setupClient func() *fake.ClientBuilder
-		setupMG     func() *v1alpha1.Container
+		setupMG     func() *containerv1beta1.Container
 		wantError   bool
 		errorMsg    string
 	}{
@@ -276,10 +276,10 @@ func TestNewDockerClient(t *testing.T) {
 					},
 				)
 			},
-			setupMG: func() *v1alpha1.Container {
-				return &v1alpha1.Container{
+			setupMG: func() *containerv1beta1.Container {
+				return &containerv1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-					Spec: v1alpha1.ContainerSpec{
+					Spec: containerv1beta1.ContainerSpec{
 						ManagedResourceSpec: xpv1.ManagedResourceSpec{
 							ProviderConfigReference: &xpv1.ProviderConfigReference{Name: "test-config"},
 						},
@@ -293,10 +293,10 @@ func TestNewDockerClient(t *testing.T) {
 			setupClient: func() *fake.ClientBuilder {
 				return fake.NewClientBuilder().WithScheme(scheme)
 			},
-			setupMG: func() *v1alpha1.Container {
-				return &v1alpha1.Container{
+			setupMG: func() *containerv1beta1.Container {
+				return &containerv1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-					Spec: v1alpha1.ContainerSpec{
+					Spec: containerv1beta1.ContainerSpec{
 						ManagedResourceSpec: xpv1.ManagedResourceSpec{
 							ProviderConfigReference: &xpv1.ProviderConfigReference{Name: "nonexistent"},
 						},
@@ -359,13 +359,13 @@ func containsSubstring(s, substr string) bool {
 func TestTrackProviderConfigUsage(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = v1beta1.SchemeBuilder.AddToScheme(scheme)
-	_ = v1alpha1.SchemeBuilder.AddToScheme(scheme)
+	_ = containerv1beta1.SchemeBuilder.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
 
 	tests := []struct {
 		name        string
 		setupClient func() *fake.ClientBuilder
-		setupMG     func() *v1alpha1.Container
+		setupMG     func() *containerv1beta1.Container
 		wantError   bool
 	}{
 		{
@@ -380,13 +380,13 @@ func TestTrackProviderConfigUsage(t *testing.T) {
 					},
 				)
 			},
-			setupMG: func() *v1alpha1.Container {
-				return &v1alpha1.Container{
+			setupMG: func() *containerv1beta1.Container {
+				return &containerv1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-container",
 						Namespace: "default",
 					},
-					Spec: v1alpha1.ContainerSpec{
+					Spec: containerv1beta1.ContainerSpec{
 						ManagedResourceSpec: xpv1.ManagedResourceSpec{
 							ProviderConfigReference: &xpv1.ProviderConfigReference{Name: "test-config"},
 						},
@@ -400,13 +400,13 @@ func TestTrackProviderConfigUsage(t *testing.T) {
 			setupClient: func() *fake.ClientBuilder {
 				return fake.NewClientBuilder().WithScheme(scheme)
 			},
-			setupMG: func() *v1alpha1.Container {
-				return &v1alpha1.Container{
+			setupMG: func() *containerv1beta1.Container {
+				return &containerv1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-container",
 						Namespace: "default",
 					},
-					Spec: v1alpha1.ContainerSpec{
+					Spec: containerv1beta1.ContainerSpec{
 						ManagedResourceSpec: xpv1.ManagedResourceSpec{
 							// No ProviderConfigReference
 						},

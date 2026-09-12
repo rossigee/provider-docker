@@ -33,7 +33,7 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/rossigee/provider-docker/apis/container/v1alpha1"
+	"github.com/rossigee/provider-docker/apis/container/v1beta1"
 	"github.com/rossigee/provider-docker/internal/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -233,10 +233,10 @@ func (m *mockDockerClient) Close() error {
 
 // Mock ContainerConfigBuilder for testing
 type mockContainerConfigBuilder struct {
-	buildFunc func(cr *v1alpha1.Container) (*container.Config, *container.HostConfig, *network.NetworkingConfig, *specs.Platform, error)
+	buildFunc func(cr *v1beta1.Container) (*container.Config, *container.HostConfig, *network.NetworkingConfig, *specs.Platform, error)
 }
 
-func (m *mockContainerConfigBuilder) BuildContainerConfig(cr *v1alpha1.Container) (*container.Config, *container.HostConfig, *network.NetworkingConfig, *specs.Platform, error) {
+func (m *mockContainerConfigBuilder) BuildContainerConfig(cr *v1beta1.Container) (*container.Config, *container.HostConfig, *network.NetworkingConfig, *specs.Platform, error) {
 	if m.buildFunc != nil {
 		return m.buildFunc(cr)
 	}
@@ -316,15 +316,15 @@ func TestExternalObserve(t *testing.T) {
 		{
 			name: "ContainerExists",
 			setupMG: func() resource.Managed {
-				container := &v1alpha1.Container{
+				container := &v1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-container",
 						Annotations: map[string]string{
 							AnnotationKeyExternalName: "existing-container-id",
 						},
 					},
-					Spec: v1alpha1.ContainerSpec{
-						ForProvider: v1alpha1.ContainerParameters{
+					Spec: v1beta1.ContainerSpec{
+						ForProvider: v1beta1.ContainerParameters{
 							Image: "nginx:latest",
 						},
 					},
@@ -358,10 +358,10 @@ func TestExternalObserve(t *testing.T) {
 		{
 			name: "ContainerNotExists_NoExternalName",
 			setupMG: func() resource.Managed {
-				return &v1alpha1.Container{
+				return &v1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-					Spec: v1alpha1.ContainerSpec{
-						ForProvider: v1alpha1.ContainerParameters{
+					Spec: v1beta1.ContainerSpec{
+						ForProvider: v1beta1.ContainerParameters{
 							Image: "nginx:latest",
 						},
 					},
@@ -376,7 +376,7 @@ func TestExternalObserve(t *testing.T) {
 		{
 			name: "ContainerNotFound",
 			setupMG: func() resource.Managed {
-				return &v1alpha1.Container{
+				return &v1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-container",
 						Annotations: map[string]string{
@@ -410,7 +410,7 @@ func TestExternalObserve(t *testing.T) {
 		{
 			name: "InspectError",
 			setupMG: func() resource.Managed {
-				return &v1alpha1.Container{
+				return &v1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-container",
 						Annotations: map[string]string{
@@ -476,15 +476,15 @@ func TestExternalCreate(t *testing.T) {
 		mockBuilder    func() *mockContainerConfigBuilder
 		wantError      bool
 		errorMsg       string
-		validateResult func(*v1alpha1.Container) bool
+		validateResult func(*v1beta1.Container) bool
 	}{
 		{
 			name: "SuccessfulCreate",
 			setupMG: func() resource.Managed {
-				return &v1alpha1.Container{
+				return &v1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-					Spec: v1alpha1.ContainerSpec{
-						ForProvider: v1alpha1.ContainerParameters{
+					Spec: v1beta1.ContainerSpec{
+						ForProvider: v1beta1.ContainerParameters{
 							Image: "nginx:latest",
 							Name:  stringPtrCtrl("my-container"),
 						},
@@ -509,13 +509,13 @@ func TestExternalCreate(t *testing.T) {
 			},
 			mockBuilder: func() *mockContainerConfigBuilder {
 				return &mockContainerConfigBuilder{
-					buildFunc: func(cr *v1alpha1.Container) (*container.Config, *container.HostConfig, *network.NetworkingConfig, *specs.Platform, error) {
+					buildFunc: func(cr *v1beta1.Container) (*container.Config, *container.HostConfig, *network.NetworkingConfig, *specs.Platform, error) {
 						return &container.Config{Image: "nginx:latest"}, &container.HostConfig{}, &network.NetworkingConfig{}, &specs.Platform{}, nil
 					},
 				}
 			},
 			wantError: false,
-			validateResult: func(cr *v1alpha1.Container) bool {
+			validateResult: func(cr *v1beta1.Container) bool {
 				annotations := cr.GetAnnotations()
 				return annotations != nil && annotations[AnnotationKeyExternalName] == "created-container-id"
 			},
@@ -560,7 +560,7 @@ func TestExternalCreate(t *testing.T) {
 			}
 
 			if tt.validateResult != nil {
-				if container, ok := mg.(*v1alpha1.Container); ok {
+				if container, ok := mg.(*v1beta1.Container); ok {
 					if !tt.validateResult(container) {
 						t.Errorf("Create() result validation failed")
 					}
@@ -614,7 +614,7 @@ func TestExternalCreateErrorHandling(t *testing.T) {
 	tests := []struct {
 		name      string
 		setupMock func() *mockDockerClient
-		setupMG   func() *v1alpha1.Container
+		setupMG   func() *v1beta1.Container
 		wantErr   bool
 		errorMsg  string
 	}{
@@ -627,11 +627,11 @@ func TestExternalCreateErrorHandling(t *testing.T) {
 					},
 				}
 			},
-			setupMG: func() *v1alpha1.Container {
-				return &v1alpha1.Container{
+			setupMG: func() *v1beta1.Container {
+				return &v1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-					Spec: v1alpha1.ContainerSpec{
-						ForProvider: v1alpha1.ContainerParameters{
+					Spec: v1beta1.ContainerSpec{
+						ForProvider: v1beta1.ContainerParameters{
 							Image: "nginx:latest",
 						},
 					},
@@ -652,11 +652,11 @@ func TestExternalCreateErrorHandling(t *testing.T) {
 					},
 				}
 			},
-			setupMG: func() *v1alpha1.Container {
-				return &v1alpha1.Container{
+			setupMG: func() *v1beta1.Container {
+				return &v1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-					Spec: v1alpha1.ContainerSpec{
-						ForProvider: v1alpha1.ContainerParameters{
+					Spec: v1beta1.ContainerSpec{
+						ForProvider: v1beta1.ContainerParameters{
 							Image: "nginx:latest",
 						},
 					},
@@ -695,7 +695,7 @@ func TestExternalDeleteErrorHandling(t *testing.T) {
 	tests := []struct {
 		name      string
 		setupMock func() *mockDockerClient
-		setupMG   func() *v1alpha1.Container
+		setupMG   func() *v1beta1.Container
 		wantErr   bool
 		errorMsg  string
 	}{
@@ -717,21 +717,21 @@ func TestExternalDeleteErrorHandling(t *testing.T) {
 					},
 				}
 			},
-			setupMG: func() *v1alpha1.Container {
-				return &v1alpha1.Container{
+			setupMG: func() *v1beta1.Container {
+				return &v1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-container",
 						Annotations: map[string]string{
 							"crossplane.io/external-name": "test-container-id",
 						},
 					},
-					Spec: v1alpha1.ContainerSpec{
-						ForProvider: v1alpha1.ContainerParameters{
+					Spec: v1beta1.ContainerSpec{
+						ForProvider: v1beta1.ContainerParameters{
 							Image: "nginx:latest",
 						},
 					},
-					Status: v1alpha1.ContainerStatus{
-						AtProvider: v1alpha1.ContainerObservation{
+					Status: v1beta1.ContainerStatus{
+						AtProvider: v1beta1.ContainerObservation{
 							ID: "test-container-id",
 						},
 					},
@@ -749,16 +749,16 @@ func TestExternalDeleteErrorHandling(t *testing.T) {
 					},
 				}
 			},
-			setupMG: func() *v1alpha1.Container {
-				return &v1alpha1.Container{
+			setupMG: func() *v1beta1.Container {
+				return &v1beta1.Container{
 					ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-					Spec: v1alpha1.ContainerSpec{
-						ForProvider: v1alpha1.ContainerParameters{
+					Spec: v1beta1.ContainerSpec{
+						ForProvider: v1beta1.ContainerParameters{
 							Image: "nginx:latest",
 						},
 					},
-					Status: v1alpha1.ContainerStatus{
-						AtProvider: v1alpha1.ContainerObservation{
+					Status: v1beta1.ContainerStatus{
+						AtProvider: v1beta1.ContainerObservation{
 							ID: "missing-container-id",
 						},
 					},
@@ -799,10 +799,10 @@ func TestExternalUpdateNotImplemented(t *testing.T) {
 		logger: logger,
 	}
 
-	mg := &v1alpha1.Container{
+	mg := &v1beta1.Container{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-		Spec: v1alpha1.ContainerSpec{
-			ForProvider: v1alpha1.ContainerParameters{
+		Spec: v1beta1.ContainerSpec{
+			ForProvider: v1beta1.ContainerParameters{
 				Image: "nginx:latest",
 			},
 		},
@@ -822,15 +822,15 @@ func TestExternalUpdateNotImplemented(t *testing.T) {
 func TestBuildContainerConfigEdgeCases(t *testing.T) {
 	tests := []struct {
 		name    string
-		cr      *v1alpha1.Container
+		cr      *v1beta1.Container
 		wantErr bool
 	}{
 		{
 			name: "empty image",
-			cr: &v1alpha1.Container{
+			cr: &v1beta1.Container{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-				Spec: v1alpha1.ContainerSpec{
-					ForProvider: v1alpha1.ContainerParameters{
+				Spec: v1beta1.ContainerSpec{
+					ForProvider: v1beta1.ContainerParameters{
 						Image: "",
 					},
 				},
@@ -839,12 +839,12 @@ func TestBuildContainerConfigEdgeCases(t *testing.T) {
 		},
 		{
 			name: "complex environment variables",
-			cr: &v1alpha1.Container{
+			cr: &v1beta1.Container{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-				Spec: v1alpha1.ContainerSpec{
-					ForProvider: v1alpha1.ContainerParameters{
+				Spec: v1beta1.ContainerSpec{
+					ForProvider: v1beta1.ContainerParameters{
 						Image: "nginx:latest",
-						Environment: []v1alpha1.EnvVar{
+						Environment: []v1beta1.EnvVar{
 							{Name: "EMPTY_VAR", Value: stringPtrCtrl("")},
 							{Name: "SPECIAL_CHARS", Value: stringPtrCtrl("value with spaces and symbols!@#$%")},
 							{Name: "UNICODE", Value: stringPtrCtrl("🐳🔧")},
@@ -856,12 +856,12 @@ func TestBuildContainerConfigEdgeCases(t *testing.T) {
 		},
 		{
 			name: "complex port mappings",
-			cr: &v1alpha1.Container{
+			cr: &v1beta1.Container{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-container"},
-				Spec: v1alpha1.ContainerSpec{
-					ForProvider: v1alpha1.ContainerParameters{
+				Spec: v1beta1.ContainerSpec{
+					ForProvider: v1beta1.ContainerParameters{
 						Image: "nginx:latest",
-						Ports: []v1alpha1.PortSpec{
+						Ports: []v1beta1.PortSpec{
 							{ContainerPort: 80, Protocol: stringPtrCtrl("tcp")},
 							{ContainerPort: 443, HostPort: int32Ptr(8443), Protocol: stringPtrCtrl("tcp")},
 							{ContainerPort: 53, Protocol: stringPtrCtrl("udp")},

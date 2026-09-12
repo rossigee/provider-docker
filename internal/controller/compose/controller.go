@@ -35,8 +35,8 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
-	composev1alpha1 "github.com/rossigee/provider-docker/apis/compose/v1alpha1"
-	containerv1alpha1 "github.com/rossigee/provider-docker/apis/container/v1alpha1"
+	composev1beta1 "github.com/rossigee/provider-docker/apis/compose/v1beta1"
+	containerv1beta1 "github.com/rossigee/provider-docker/apis/container/v1beta1"
 	dockerclients "github.com/rossigee/provider-docker/internal/clients"
 	"github.com/rossigee/provider-docker/internal/compose"
 	"github.com/rossigee/provider-docker/internal/tracing"
@@ -68,7 +68,7 @@ const (
 
 // Setup adds a controller that reconciles ComposeStack managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(composev1alpha1.ComposeStackGroupKind.String())
+	name := managed.ControllerName(composev1beta1.ComposeStackGroupKind.String())
 
 	opts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
@@ -86,7 +86,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(composev1alpha1.ComposeStackGroupVersionKind),
+		resource.ManagedKind(composev1beta1.ComposeStackGroupVersionKind),
 		opts...,
 	)
 
@@ -94,7 +94,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&composev1alpha1.ComposeStack{}).
+		For(&composev1beta1.ComposeStack{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
@@ -112,7 +112,7 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	_, ok := mg.(*composev1alpha1.ComposeStack)
+	_, ok := mg.(*composev1beta1.ComposeStack)
 	if !ok {
 		return nil, errors.New(errNotComposeStack)
 	}
@@ -151,7 +151,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		tracing.SpanAttrs("composestack", mg.GetName(), "observe")...)
 	defer span.End()
 
-	cr, ok := mg.(*composev1alpha1.ComposeStack)
+	cr, ok := mg.(*composev1beta1.ComposeStack)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotComposeStack)
 	}
@@ -179,7 +179,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		ResourceUpToDate: true,
 	}
 
-	services := make(map[string]composev1alpha1.ServiceStatus)
+	services := make(map[string]composev1beta1.ServiceStatus)
 	allRunning := true
 
 	for _, container := range parseResult.Containers {
@@ -192,7 +192,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 			observation.ResourceExists = false
 			observation.ResourceUpToDate = false
 			allRunning = false
-			services[container.Name] = composev1alpha1.ServiceStatus{
+			services[container.Name] = composev1beta1.ServiceStatus{
 				Name:  container.Name,
 				State: "pending",
 			}
@@ -200,7 +200,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		}
 
 		// Container exists, check its state
-		status := composev1alpha1.ServiceStatus{
+		status := composev1beta1.ServiceStatus{
 			Name: container.Name,
 		}
 
@@ -256,7 +256,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		tracing.SpanAttrs("composestack", mg.GetName(), "create")...)
 	defer span.End()
 
-	cr, ok := mg.(*composev1alpha1.ComposeStack)
+	cr, ok := mg.(*composev1beta1.ComposeStack)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotComposeStack)
 	}
@@ -301,7 +301,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		tracing.SpanAttrs("composestack", mg.GetName(), "update")...)
 	defer span.End()
 
-	_, ok := mg.(*composev1alpha1.ComposeStack)
+	_, ok := mg.(*composev1beta1.ComposeStack)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotComposeStack)
 	}
@@ -315,7 +315,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 		tracing.SpanAttrs("composestack", mg.GetName(), "delete")...)
 	defer span.End()
 
-	cr, ok := mg.(*composev1alpha1.ComposeStack)
+	cr, ok := mg.(*composev1beta1.ComposeStack)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotComposeStack)
 	}
@@ -360,7 +360,7 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 
 // Helper methods
 
-func (c *external) getComposeContent(ctx context.Context, cr *composev1alpha1.ComposeStack) (string, error) {
+func (c *external) getComposeContent(ctx context.Context, cr *composev1beta1.ComposeStack) (string, error) {
 	if cr.Spec.ForProvider.Compose != nil {
 		return *cr.Spec.ForProvider.Compose, nil
 	}
@@ -377,7 +377,7 @@ func (c *external) getComposeContent(ctx context.Context, cr *composev1alpha1.Co
 	return "", errors.New("no compose content or reference specified")
 }
 
-func (c *external) getComposeFromConfigMap(ctx context.Context, cr *composev1alpha1.ComposeStack, ref *composev1alpha1.ConfigMapReference) (string, error) {
+func (c *external) getComposeFromConfigMap(ctx context.Context, cr *composev1beta1.ComposeStack, ref *composev1beta1.ConfigMapReference) (string, error) {
 	namespace := cr.GetNamespace()
 	if ref.Namespace != nil {
 		namespace = *ref.Namespace
@@ -399,7 +399,7 @@ func (c *external) getComposeFromConfigMap(ctx context.Context, cr *composev1alp
 	return content, nil
 }
 
-func (c *external) getComposeFromSecret(ctx context.Context, cr *composev1alpha1.ComposeStack, ref *composev1alpha1.SecretReference) (string, error) {
+func (c *external) getComposeFromSecret(ctx context.Context, cr *composev1beta1.ComposeStack, ref *composev1beta1.SecretReference) (string, error) {
 	namespace := cr.GetNamespace()
 	if ref.Namespace != nil {
 		namespace = *ref.Namespace
@@ -421,14 +421,14 @@ func (c *external) getComposeFromSecret(ctx context.Context, cr *composev1alpha1
 	return string(content), nil
 }
 
-func (c *external) getProjectName(cr *composev1alpha1.ComposeStack) string {
+func (c *external) getProjectName(cr *composev1beta1.ComposeStack) string {
 	if cr.Spec.ForProvider.ProjectName != nil {
 		return *cr.Spec.ForProvider.ProjectName
 	}
 	return cr.GetName()
 }
 
-func (c *external) buildEnvironment(ctx context.Context, cr *composev1alpha1.ComposeStack) map[string]string {
+func (c *external) buildEnvironment(ctx context.Context, cr *composev1beta1.ComposeStack) map[string]string {
 	environment := make(map[string]string)
 
 	for _, env := range cr.Spec.ForProvider.Environment {
@@ -450,7 +450,7 @@ func (c *external) buildEnvironment(ctx context.Context, cr *composev1alpha1.Com
 	return environment
 }
 
-func (c *external) resolveEnvValueFrom(ctx context.Context, cr *composev1alpha1.ComposeStack, valueFrom *composev1alpha1.EnvVarSource) (string, error) {
+func (c *external) resolveEnvValueFrom(ctx context.Context, cr *composev1beta1.ComposeStack, valueFrom *composev1beta1.EnvVarSource) (string, error) {
 	if valueFrom.SecretKeyRef != nil {
 		return c.getValueFromSecret(ctx, cr, valueFrom.SecretKeyRef)
 	}
@@ -460,7 +460,7 @@ func (c *external) resolveEnvValueFrom(ctx context.Context, cr *composev1alpha1.
 	return "", errors.New("no valid valueFrom source specified")
 }
 
-func (c *external) getValueFromSecret(ctx context.Context, cr *composev1alpha1.ComposeStack, secretRef *composev1alpha1.SecretKeySelector) (string, error) {
+func (c *external) getValueFromSecret(ctx context.Context, cr *composev1beta1.ComposeStack, secretRef *composev1beta1.SecretKeySelector) (string, error) {
 	namespace := secretRef.Namespace
 	if namespace == nil {
 		ns := cr.GetNamespace()
@@ -486,7 +486,7 @@ func (c *external) getValueFromSecret(ctx context.Context, cr *composev1alpha1.C
 	return string(data), nil
 }
 
-func (c *external) getValueFromConfigMap(ctx context.Context, cr *composev1alpha1.ComposeStack, configMapRef *composev1alpha1.ConfigMapKeySelector) (string, error) {
+func (c *external) getValueFromConfigMap(ctx context.Context, cr *composev1beta1.ComposeStack, configMapRef *composev1beta1.ConfigMapKeySelector) (string, error) {
 	namespace := configMapRef.Namespace
 	if namespace == nil {
 		ns := cr.GetNamespace()
@@ -516,7 +516,7 @@ func (c *external) getContainerName(projectName, serviceName string) string {
 	return fmt.Sprintf("%s_%s_1", projectName, serviceName)
 }
 
-func (c *external) createContainer(ctx context.Context, cr *composev1alpha1.ComposeStack, projectName string, cont *containerv1alpha1.Container) error {
+func (c *external) createContainer(ctx context.Context, cr *composev1beta1.ComposeStack, projectName string, cont *containerv1beta1.Container) error {
 	// Convert Container spec to Docker API calls
 	containerName := c.getContainerName(projectName, cont.Name)
 
@@ -556,7 +556,7 @@ func (c *external) createContainer(ctx context.Context, cr *composev1alpha1.Comp
 }
 
 // convertContainerSpec converts a Container spec to Docker API configuration structs
-func (c *external) convertContainerSpec(ctx context.Context, cr *composev1alpha1.ComposeStack, spec *containerv1alpha1.ContainerParameters, projectName string) (*container.Config, *container.HostConfig, *network.NetworkingConfig, error) {
+func (c *external) convertContainerSpec(ctx context.Context, cr *composev1beta1.ComposeStack, spec *containerv1beta1.ContainerParameters, projectName string) (*container.Config, *container.HostConfig, *network.NetworkingConfig, error) {
 	// Container configuration
 	config := &container.Config{
 		Image: spec.Image,
@@ -689,7 +689,7 @@ func (c *external) convertContainerSpec(ctx context.Context, cr *composev1alpha1
 
 // Helper methods for converting Container spec fields
 
-func (c *external) convertEnvironmentVars(ctx context.Context, cr *composev1alpha1.ComposeStack, envVars []containerv1alpha1.EnvVar) []string {
+func (c *external) convertEnvironmentVars(ctx context.Context, cr *composev1beta1.ComposeStack, envVars []containerv1beta1.EnvVar) []string {
 	var env []string
 	for _, envVar := range envVars {
 		if envVar.Value != nil {
@@ -712,7 +712,7 @@ func (c *external) convertEnvironmentVars(ctx context.Context, cr *composev1alph
 	return env
 }
 
-func (c *external) resolveContainerEnvValueFrom(ctx context.Context, cr *composev1alpha1.ComposeStack, valueFrom *containerv1alpha1.EnvVarSource) (string, error) {
+func (c *external) resolveContainerEnvValueFrom(ctx context.Context, cr *composev1beta1.ComposeStack, valueFrom *containerv1beta1.EnvVarSource) (string, error) {
 	if valueFrom.SecretKeyRef != nil {
 		return c.getValueFromContainerSecret(ctx, cr, valueFrom.SecretKeyRef)
 	}
@@ -722,7 +722,7 @@ func (c *external) resolveContainerEnvValueFrom(ctx context.Context, cr *compose
 	return "", errors.New("no valid valueFrom source specified")
 }
 
-func (c *external) getValueFromContainerSecret(ctx context.Context, cr *composev1alpha1.ComposeStack, secretRef *containerv1alpha1.SecretKeySelector) (string, error) {
+func (c *external) getValueFromContainerSecret(ctx context.Context, cr *composev1beta1.ComposeStack, secretRef *containerv1beta1.SecretKeySelector) (string, error) {
 	namespace := cr.GetNamespace()
 	if namespace == "" {
 		namespace = "default"
@@ -750,7 +750,7 @@ func (c *external) getValueFromContainerSecret(ctx context.Context, cr *composev
 	return string(data), nil
 }
 
-func (c *external) getValueFromContainerConfigMap(ctx context.Context, cr *composev1alpha1.ComposeStack, configMapRef *containerv1alpha1.ConfigMapKeySelector) (string, error) {
+func (c *external) getValueFromContainerConfigMap(ctx context.Context, cr *composev1beta1.ComposeStack, configMapRef *containerv1beta1.ConfigMapKeySelector) (string, error) {
 	namespace := cr.GetNamespace()
 	if namespace == "" {
 		namespace = "default"
@@ -778,7 +778,7 @@ func (c *external) getValueFromContainerConfigMap(ctx context.Context, cr *compo
 	return data, nil
 }
 
-func (c *external) convertExposedPorts(ports []containerv1alpha1.PortSpec) nat.PortSet {
+func (c *external) convertExposedPorts(ports []containerv1beta1.PortSpec) nat.PortSet {
 	exposedPorts := make(nat.PortSet)
 	for _, port := range ports {
 		protocol := "tcp"
@@ -791,7 +791,7 @@ func (c *external) convertExposedPorts(ports []containerv1alpha1.PortSpec) nat.P
 	return exposedPorts
 }
 
-func (c *external) convertPortBindings(ports []containerv1alpha1.PortSpec) nat.PortMap {
+func (c *external) convertPortBindings(ports []containerv1beta1.PortSpec) nat.PortMap {
 	portBindings := make(nat.PortMap)
 	for _, port := range ports {
 		if port.HostPort == nil {
@@ -818,7 +818,7 @@ func (c *external) convertPortBindings(ports []containerv1alpha1.PortSpec) nat.P
 	return portBindings
 }
 
-func (c *external) convertVolumeMounts(volumes []containerv1alpha1.VolumeMount) ([]string, []mount.Mount, error) {
+func (c *external) convertVolumeMounts(volumes []containerv1beta1.VolumeMount) ([]string, []mount.Mount, error) {
 	var binds []string
 	var mounts []mount.Mount
 
@@ -864,7 +864,7 @@ func (c *external) convertVolumeMounts(volumes []containerv1alpha1.VolumeMount) 
 	return binds, mounts, nil
 }
 
-func (c *external) convertNetworkAttachments(networks []containerv1alpha1.NetworkAttachment) map[string]*network.EndpointSettings {
+func (c *external) convertNetworkAttachments(networks []containerv1beta1.NetworkAttachment) map[string]*network.EndpointSettings {
 	endpoints := make(map[string]*network.EndpointSettings)
 	for _, net := range networks {
 		endpoint := &network.EndpointSettings{}
@@ -891,7 +891,7 @@ func (c *external) convertNetworkAttachments(networks []containerv1alpha1.Networ
 	return endpoints
 }
 
-func (c *external) setResourceLimits(hostConfig *container.HostConfig, resources *containerv1alpha1.ResourceRequirements) {
+func (c *external) setResourceLimits(hostConfig *container.HostConfig, resources *containerv1beta1.ResourceRequirements) {
 	// Set memory limits
 	if resources.Limits != nil {
 		if memLimit, exists := resources.Limits["memory"]; exists {
@@ -917,7 +917,7 @@ func (c *external) setResourceLimits(hostConfig *container.HostConfig, resources
 	}
 }
 
-func (c *external) setSecurityContext(hostConfig *container.HostConfig, config *container.Config, secCtx *containerv1alpha1.SecurityContext) {
+func (c *external) setSecurityContext(hostConfig *container.HostConfig, config *container.Config, secCtx *containerv1beta1.SecurityContext) {
 	if secCtx.RunAsUser != nil {
 		config.User = fmt.Sprintf("%d", *secCtx.RunAsUser)
 		if secCtx.RunAsGroup != nil {

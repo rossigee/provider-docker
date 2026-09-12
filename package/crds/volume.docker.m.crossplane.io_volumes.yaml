@@ -12,12 +12,11 @@ spec:
     - crossplane
     - managed
     - docker
-    - v2
     kind: Volume
     listKind: VolumeList
     plural: volumes
     singular: volume
-  scope: Namespaced
+  scope: Cluster
   versions:
   - additionalPrinterColumns:
     - jsonPath: .status.conditions[?(@.type=='Ready')].status

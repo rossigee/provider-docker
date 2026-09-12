@@ -28,7 +28,7 @@ import (
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/pkg/errors"
 
-	containerv1alpha1 "github.com/rossigee/provider-docker/apis/container/v1alpha1"
+	containerv1beta1 "github.com/rossigee/provider-docker/apis/container/v1beta1"
 )
 
 // Parser handles parsing Docker Compose files and converting them to Crossplane resources.
@@ -50,7 +50,7 @@ func NewParser(projectName, workingDir string, environment map[string]string) *P
 // ParseResult contains the results of parsing a compose file.
 type ParseResult struct {
 	Project    *types.Project
-	Containers []containerv1alpha1.Container
+	Containers []containerv1beta1.Container
 	Networks   []NetworkDefinition
 	Volumes    []VolumeDefinition
 }
@@ -137,8 +137,8 @@ func (p *Parser) ParseCompose(ctx context.Context, composeContent string) (*Pars
 }
 
 // convertServices converts Docker Compose services to Container resources.
-func (p *Parser) convertServices(services types.Services) ([]containerv1alpha1.Container, error) {
-	var containers []containerv1alpha1.Container
+func (p *Parser) convertServices(services types.Services) ([]containerv1beta1.Container, error) {
+	var containers []containerv1beta1.Container
 
 	for _, service := range services {
 		container, err := p.convertService(service)
@@ -152,12 +152,12 @@ func (p *Parser) convertServices(services types.Services) ([]containerv1alpha1.C
 }
 
 // convertService converts a single Docker Compose service to a Container resource.
-func (p *Parser) convertService(service types.ServiceConfig) (*containerv1alpha1.Container, error) {
-	container := &containerv1alpha1.Container{}
+func (p *Parser) convertService(service types.ServiceConfig) (*containerv1beta1.Container, error) {
+	container := &containerv1beta1.Container{}
 	container.SetName(fmt.Sprintf("%s-%s", p.projectName, service.Name))
 
 	// Basic container configuration
-	params := containerv1alpha1.ContainerParameters{
+	params := containerv1beta1.ContainerParameters{
 		Image: service.Image,
 		Name:  &service.Name,
 	}
@@ -218,17 +218,17 @@ func (p *Parser) convertService(service types.ServiceConfig) (*containerv1alpha1
 }
 
 // convertEnvironment converts Docker Compose environment variables to Container environment.
-func (p *Parser) convertEnvironment(env types.MappingWithEquals) []containerv1alpha1.EnvVar {
-	var envVars []containerv1alpha1.EnvVar
+func (p *Parser) convertEnvironment(env types.MappingWithEquals) []containerv1beta1.EnvVar {
+	var envVars []containerv1beta1.EnvVar
 
 	for key, value := range env {
 		if value == nil {
 			// Environment variable without value (will be inherited from host)
-			envVars = append(envVars, containerv1alpha1.EnvVar{
+			envVars = append(envVars, containerv1beta1.EnvVar{
 				Name: key,
 			})
 		} else {
-			envVars = append(envVars, containerv1alpha1.EnvVar{
+			envVars = append(envVars, containerv1beta1.EnvVar{
 				Name:  key,
 				Value: value,
 			})
@@ -239,11 +239,11 @@ func (p *Parser) convertEnvironment(env types.MappingWithEquals) []containerv1al
 }
 
 // convertPorts converts Docker Compose ports to Container ports.
-func (p *Parser) convertPorts(ports []types.ServicePortConfig) []containerv1alpha1.PortSpec {
-	var portSpecs []containerv1alpha1.PortSpec
+func (p *Parser) convertPorts(ports []types.ServicePortConfig) []containerv1beta1.PortSpec {
+	var portSpecs []containerv1beta1.PortSpec
 
 	for _, port := range ports {
-		portSpec := containerv1alpha1.PortSpec{
+		portSpec := containerv1beta1.PortSpec{
 			ContainerPort: int32(port.Target),
 		}
 
@@ -270,11 +270,11 @@ func (p *Parser) convertPorts(ports []types.ServicePortConfig) []containerv1alph
 }
 
 // convertServiceVolumes converts Docker Compose volume mounts to Container volumes.
-func (p *Parser) convertServiceVolumes(volumes []types.ServiceVolumeConfig) []containerv1alpha1.VolumeMount {
-	var volumeMounts []containerv1alpha1.VolumeMount
+func (p *Parser) convertServiceVolumes(volumes []types.ServiceVolumeConfig) []containerv1beta1.VolumeMount {
+	var volumeMounts []containerv1beta1.VolumeMount
 
 	for _, volume := range volumes {
-		volumeMount := containerv1alpha1.VolumeMount{
+		volumeMount := containerv1beta1.VolumeMount{
 			MountPath: volume.Target,
 		}
 
@@ -285,16 +285,16 @@ func (p *Parser) convertServiceVolumes(volumes []types.ServiceVolumeConfig) []co
 			// Set the volume source based on the type
 			if volume.Type == "bind" || strings.HasPrefix(volume.Source, "/") {
 				// Host path mount
-				volumeMount.VolumeSource = containerv1alpha1.VolumeSource{
-					HostPath: &containerv1alpha1.HostPathVolumeSource{
+				volumeMount.VolumeSource = containerv1beta1.VolumeSource{
+					HostPath: &containerv1beta1.HostPathVolumeSource{
 						Path: volume.Source,
-						Type: containerv1alpha1.HostPathTypePtr(containerv1alpha1.HostPathDirectoryOrCreate),
+						Type: containerv1beta1.HostPathTypePtr(containerv1beta1.HostPathDirectoryOrCreate),
 					},
 				}
 			} else {
 				// Named volume
-				volumeMount.VolumeSource = containerv1alpha1.VolumeSource{
-					Volume: &containerv1alpha1.VolumeVolumeSource{
+				volumeMount.VolumeSource = containerv1beta1.VolumeSource{
+					Volume: &containerv1beta1.VolumeVolumeSource{
 						VolumeName: volume.Source,
 					},
 				}
@@ -312,11 +312,11 @@ func (p *Parser) convertServiceVolumes(volumes []types.ServiceVolumeConfig) []co
 }
 
 // convertServiceNetworks converts Docker Compose service networks to Container networks.
-func (p *Parser) convertServiceNetworks(networks map[string]*types.ServiceNetworkConfig) []containerv1alpha1.NetworkAttachment {
-	var networkAttachments []containerv1alpha1.NetworkAttachment
+func (p *Parser) convertServiceNetworks(networks map[string]*types.ServiceNetworkConfig) []containerv1beta1.NetworkAttachment {
+	var networkAttachments []containerv1beta1.NetworkAttachment
 
 	for networkName, config := range networks {
-		attachment := containerv1alpha1.NetworkAttachment{
+		attachment := containerv1beta1.NetworkAttachment{
 			Name: networkName,
 		}
 
