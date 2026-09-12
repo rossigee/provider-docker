@@ -267,7 +267,7 @@ spec:
   resources:
   - name: container
     base:
-      apiVersion: docker.crossplane.io/v1alpha1
+      apiVersion: container.docker.m.crossplane.io/v1beta1
       kind: Container
     patches:
     - type: FromCompositeFieldPath
@@ -316,7 +316,7 @@ spec:
 
 **Future** (clean native resource):
 ```yaml
-apiVersion: docker.crossplane.io/v1alpha1
+apiVersion: container.docker.m.crossplane.io/v1beta1
 kind: Container
 metadata:
   name: kubeftpd
@@ -357,7 +357,7 @@ spec:
 
 ### Multi-Service Deployment
 ```yaml
-apiVersion: docker.crossplane.io/v1alpha1
+apiVersion: container.docker.m.crossplane.io/v1beta1
 kind: Service
 metadata:
   name: loki-stack
@@ -451,7 +451,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane-contrib/provider-d
 
 # Configure provider
 kubectl apply -f - <<EOF
-apiVersion: docker.crossplane.io/v1beta1
+apiVersion: docker.m.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: default
@@ -470,7 +470,7 @@ EOF
 ### First Container
 ```bash
 kubectl apply -f - <<EOF
-apiVersion: docker.crossplane.io/v1alpha1
+apiVersion: container.docker.m.crossplane.io/v1beta1
 kind: Container
 metadata:
   name: hello-world

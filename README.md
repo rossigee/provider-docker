@@ -42,7 +42,7 @@ This provider supports both Crossplane v1 (cluster-scoped) and v2 (namespaced) r
 
 #### v1alpha1 (Cluster-scoped - Legacy)
 ```yaml
-apiVersion: container.docker.crossplane.io/v1alpha1
+apiVersion: container.docker.m.crossplane.io/v1beta1
 kind: Container
 metadata:
   name: my-app  # No namespace (cluster-scoped)
@@ -95,7 +95,7 @@ kubectl crossplane install provider ghcr.io/rossigee/provider-docker:latest
 ### Configuration
 
 ```yaml
-apiVersion: docker.crossplane.io/v1beta1
+apiVersion: docker.m.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: docker-config
@@ -105,13 +105,17 @@ spec:
 
 ## Resource Types
 
-| Resource | Cluster-scoped (v1alpha1) | Namespaced (v1beta1) | Description |
-|----------|---------------------------|-----------------------|-------------|
-| Container | `container.docker.crossplane.io/v1alpha1` | `container.docker.m.crossplane.io/v1beta1` — controller active | Docker container lifecycle |
-| Volume | `volume.docker.crossplane.io/v1alpha1` | `volume.docker.m.crossplane.io/v1beta1` — types only, no controller yet | Docker volume management |
-| Network | `network.docker.crossplane.io/v1alpha1` | `network.docker.m.crossplane.io/v1beta1` — types only, no controller yet | Custom Docker networks |
-| ComposeStack | `compose.docker.crossplane.io/v1alpha1` | `compose.docker.m.crossplane.io/v1beta1` — types only, no controller yet | Docker Compose-style multi-container services |
-| ProviderConfig | `docker.crossplane.io/v1beta1` | — | Docker daemon connection configuration |
+All resources are namespaced `v1beta1` (`.m.` groups) for Crossplane v2 multi-tenancy. All four managed resources have wired controllers.
+
+| Resource | API Group | Description |
+|----------|-----------|-------------|
+| Container | `container.docker.m.crossplane.io/v1beta1` | Docker container lifecycle |
+| Volume | `volume.docker.m.crossplane.io/v1beta1` | Docker volume management |
+| Network | `network.docker.m.crossplane.io/v1beta1` | Custom Docker networks |
+| ComposeStack | `compose.docker.m.crossplane.io/v1beta1` | Docker Compose-style multi-container services |
+| ProviderConfig | `docker.m.crossplane.io/v1beta1` | Docker daemon connection configuration (cluster-scoped) |
+
+See [docs/index.md](docs/index.md) for the full reference and [API coverage gaps](docs/index.md#api-coverage-gaps).
 
 ## Local Development
 
@@ -193,7 +197,7 @@ go tool cover -html=coverage.out
 ### Provider Configuration
 
 ```yaml
-apiVersion: docker.crossplane.io/v1beta1
+apiVersion: docker.m.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: docker-config
@@ -239,7 +243,7 @@ spec:
 ### After (Native Provider)
 ```yaml
 # Clean, native Crossplane resource
-apiVersion: docker.crossplane.io/v1alpha1
+apiVersion: container.docker.m.crossplane.io/v1beta1
 kind: Container
 metadata:
   name: my-service

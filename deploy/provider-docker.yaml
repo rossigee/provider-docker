@@ -70,19 +70,19 @@ rules:
   - list
   - watch
 - apiGroups:
-  - "container.docker.crossplane.io"
+  - "container.docker.m.crossplane.io"
   resources:
   - "*"
   verbs:
   - "*"
 - apiGroups:
-  - "compose.docker.crossplane.io"
+  - "compose.docker.m.crossplane.io"
   resources:
   - "*"
   verbs:
   - "*"
 - apiGroups:
-  - "docker.crossplane.io"
+  - "docker.m.crossplane.io"
   resources:
   - "*"
   verbs:
