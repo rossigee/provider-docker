@@ -184,7 +184,7 @@ type NetworkContainer struct {
 // +kubebuilder:printcolumn:name="DRIVER",type="string",JSONPath=".status.atProvider.driver",priority=1
 // +kubebuilder:printcolumn:name="SCOPE",type="string",JSONPath=".status.atProvider.scope",priority=1
 // +kubebuilder:printcolumn:name="INTERNAL",type="boolean",JSONPath=".status.atProvider.internal",priority=1
-// +kubebuilder:resource:scope=Cluster,categories={crossplane,managed,docker}
+// +kubebuilder:resource:scope=Namespaced,categories={crossplane,managed,docker}
 type Network struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

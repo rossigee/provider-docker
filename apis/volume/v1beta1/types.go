@@ -106,7 +106,7 @@ type VolumeUsageData struct {
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="DRIVER",type="string",JSONPath=".status.atProvider.driver",priority=1
 // +kubebuilder:printcolumn:name="MOUNTPOINT",type="string",JSONPath=".status.atProvider.mountpoint",priority=1
-// +kubebuilder:resource:scope=Cluster,categories={crossplane,managed,docker}
+// +kubebuilder:resource:scope=Namespaced,categories={crossplane,managed,docker}
 type Volume struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
