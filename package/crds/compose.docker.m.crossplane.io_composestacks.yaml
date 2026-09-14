@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.21.0
+    controller-gen.kubebuilder.io/version: v0.22.0
   name: composestacks.compose.docker.m.crossplane.io
 spec:
   group: compose.docker.m.crossplane.io
@@ -37,40 +37,75 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
+        description: ComposeStack is a managed resource that represents a Docker Compose
+          stack.
         properties:
           apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
           spec:
+            description: A ComposeStackSpec defines the desired state of a ComposeStack.
             properties:
               forProvider:
+                description: ForProvider contains the provider-specific configuration.
                 properties:
                   compose:
+                    description: |-
+                      Compose contains the Docker Compose file content inline.
+                      This is mutually exclusive with ComposeRef.
                     type: string
                   composeRef:
+                    description: |-
+                      ComposeRef references a ConfigMap or Secret containing the compose file.
+                      This is mutually exclusive with Compose.
                     properties:
                       configMapRef:
+                        description: |-
+                          ConfigMapRef references a ConfigMap.
+                          This is mutually exclusive with SecretRef.
                         properties:
                           key:
+                            description: Key within the ConfigMap to read from.
                             type: string
                           name:
+                            description: Name of the ConfigMap.
                             type: string
                           namespace:
+                            description: Namespace of the ConfigMap. If not specified,
+                              uses the same namespace as the ComposeStack.
                             type: string
                         required:
                         - key
                         - name
                         type: object
                       secretRef:
+                        description: |-
+                          SecretRef references a Secret.
+                          This is mutually exclusive with ConfigMapRef.
                         properties:
                           key:
+                            description: Key within the Secret to read from.
                             type: string
                           name:
+                            description: Name of the Secret.
                             type: string
                           namespace:
+                            description: Namespace of the Secret. If not specified,
+                              uses the same namespace as the ComposeStack.
                             type: string
                         required:
                         - key
@@ -78,27 +113,46 @@ spec:
                         type: object
                     type: object
                   envFiles:
+                    description: |-
+                      EnvFiles specifies additional .env files to load.
+                      These can reference ConfigMaps containing environment definitions.
                     items:
+                      description: ComposeReference references a ConfigMap or Secret
+                        containing compose-related data.
                       properties:
                         configMapRef:
+                          description: |-
+                            ConfigMapRef references a ConfigMap.
+                            This is mutually exclusive with SecretRef.
                           properties:
                             key:
+                              description: Key within the ConfigMap to read from.
                               type: string
                             name:
+                              description: Name of the ConfigMap.
                               type: string
                             namespace:
+                              description: Namespace of the ConfigMap. If not specified,
+                                uses the same namespace as the ComposeStack.
                               type: string
                           required:
                           - key
                           - name
                           type: object
                         secretRef:
+                          description: |-
+                            SecretRef references a Secret.
+                            This is mutually exclusive with ConfigMapRef.
                           properties:
                             key:
+                              description: Key within the Secret to read from.
                               type: string
                             name:
+                              description: Name of the Secret.
                               type: string
                             namespace:
+                              description: Namespace of the Secret. If not specified,
+                                uses the same namespace as the ComposeStack.
                               type: string
                           required:
                           - key
@@ -107,33 +161,55 @@ spec:
                       type: object
                     type: array
                   environment:
+                    description: |-
+                      Environment variables to inject into all services.
+                      These variables are available for interpolation in the compose file.
                     items:
+                      description: ComposeEnvVar represents an environment variable
+                        for the compose stack.
                       properties:
                         name:
+                          description: Name of the environment variable.
                           type: string
                         value:
+                          description: |-
+                            Value is the literal value of the environment variable.
+                            This is mutually exclusive with ValueFrom.
                           type: string
                         valueFrom:
+                          description: |-
+                            ValueFrom specifies a source for the environment variable value.
+                            This is mutually exclusive with Value.
                           properties:
                             configMapKeyRef:
+                              description: ConfigMapKeyRef selects a key from a ConfigMap.
                               properties:
                                 key:
+                                  description: Key within the ConfigMap to select.
                                   type: string
                                 name:
+                                  description: Name of the ConfigMap.
                                   type: string
                                 namespace:
+                                  description: Namespace of the ConfigMap. If not
+                                    specified, uses the same namespace as the ComposeStack.
                                   type: string
                               required:
                               - key
                               - name
                               type: object
                             secretKeyRef:
+                              description: SecretKeyRef selects a key from a Secret.
                               properties:
                                 key:
+                                  description: Key within the Secret to select.
                                   type: string
                                 name:
+                                  description: Name of the Secret.
                                   type: string
                                 namespace:
+                                  description: Namespace of the Secret. If not specified,
+                                    uses the same namespace as the ComposeStack.
                                   type: string
                               required:
                               - key
@@ -145,38 +221,69 @@ spec:
                       type: object
                     type: array
                   projectName:
+                    description: |-
+                      ProjectName sets the project name for the compose stack.
+                      This is equivalent to docker-compose -p flag.
+                      If not specified, the resource name will be used.
                     type: string
                   serviceOverrides:
                     additionalProperties:
+                      description: ServiceOverride allows overriding specific service
+                        configurations.
                       properties:
                         environment:
+                          description: Environment adds or overrides environment variables
+                            for this service.
                           items:
+                            description: ComposeEnvVar represents an environment variable
+                              for the compose stack.
                             properties:
                               name:
+                                description: Name of the environment variable.
                                 type: string
                               value:
+                                description: |-
+                                  Value is the literal value of the environment variable.
+                                  This is mutually exclusive with ValueFrom.
                                 type: string
                               valueFrom:
+                                description: |-
+                                  ValueFrom specifies a source for the environment variable value.
+                                  This is mutually exclusive with Value.
                                 properties:
                                   configMapKeyRef:
+                                    description: ConfigMapKeyRef selects a key from
+                                      a ConfigMap.
                                     properties:
                                       key:
+                                        description: Key within the ConfigMap to select.
                                         type: string
                                       name:
+                                        description: Name of the ConfigMap.
                                         type: string
                                       namespace:
+                                        description: Namespace of the ConfigMap. If
+                                          not specified, uses the same namespace as
+                                          the ComposeStack.
                                         type: string
                                     required:
                                     - key
                                     - name
                                     type: object
                                   secretKeyRef:
+                                    description: SecretKeyRef selects a key from a
+                                      Secret.
                                     properties:
                                       key:
+                                        description: Key within the Secret to select.
                                         type: string
                                       name:
+                                        description: Name of the Secret.
                                         type: string
                                       namespace:
+                                        description: Namespace of the Secret. If not
+                                          specified, uses the same namespace as the
+                                          ComposeStack.
                                         type: string
                                     required:
                                     - key
@@ -190,22 +297,34 @@ spec:
                         labels:
                           additionalProperties:
                             type: string
+                          description: Labels adds or overrides labels for this service.
                           type: object
                         replicas:
+                          description: |-
+                            Replicas overrides the number of replicas for this service.
+                            Note: This is a Crossplane-specific extension to Docker Compose.
                           format: int32
                           type: integer
                         resources:
+                          description: Resources overrides resource requirements for
+                            this service.
                           properties:
                             limits:
                               additionalProperties:
                                 type: string
+                              description: Limits describes the maximum amount of
+                                compute resources allowed.
                               type: object
                             requests:
                               additionalProperties:
                                 type: string
+                              description: Requests describes the minimum amount of
+                                compute resources required.
                               type: object
                           type: object
                         restartPolicy:
+                          description: RestartPolicy overrides the restart policy
+                            for this service.
                           enum:
                           - "no"
                           - on-failure
@@ -213,14 +332,29 @@ spec:
                           - unless-stopped
                           type: string
                       type: object
+                    description: ServiceOverrides allow overriding specific service
+                      configurations.
                     type: object
                   workingDir:
+                    description: |-
+                      WorkingDir sets the working directory for compose file resolution.
+                      This affects relative paths in the compose file.
                     type: string
                 type: object
               managementPolicies:
                 default:
                 - '*'
+                description: |-
+                  THIS IS A BETA FIELD. It is on by default but can be opted out
+                  through a Crossplane feature flag.
+                  ManagementPolicies specify the array of actions Crossplane is allowed to
+                  take on the managed and external resources.
+                  See the design doc for more information: https://github.com/crossplane/crossplane/blob/499895a25d1a1a0ba1604944ef98ac7a1a71f197/design/design-doc-observe-only-resources.md?plain=1#L223
+                  and this one: https://github.com/crossplane/crossplane/blob/444267e84783136daa93568b364a5f01228cacbe/design/one-pager-ignore-changes.md
                 items:
+                  description: |-
+                    A ManagementAction represents an action that the Crossplane controllers
+                    can take on an external resource.
                   enum:
                   - Observe
                   - Create
@@ -234,18 +368,30 @@ spec:
                 default:
                   kind: ClusterProviderConfig
                   name: default
+                description: |-
+                  ProviderConfigReference specifies how the provider that will be used to
+                  create, observe, update, and delete this managed resource should be
+                  configured.
                 properties:
                   kind:
+                    description: Kind of the referenced object.
                     type: string
                   name:
+                    description: Name of the referenced object.
                     type: string
                 required:
                 - kind
                 - name
                 type: object
               writeConnectionSecretToRef:
+                description: |-
+                  WriteConnectionSecretToReference specifies the namespace and name of a
+                  Secret to which any connection details for this managed resource should
+                  be written. Connection details frequently include the endpoint, username,
+                  and password required to connect to the managed resource.
                 properties:
                   name:
+                    description: Name of the secret.
                     type: string
                 required:
                 - name
@@ -254,57 +400,91 @@ spec:
             - forProvider
             type: object
           status:
+            description: ComposeStackStatus represents the observed state of a ComposeStack.
             properties:
               atProvider:
+                description: AtProvider contains provider-specific status information.
                 properties:
                   composeVersion:
+                    description: ComposeVersion indicates the detected compose file
+                      format version.
                     type: string
                   networks:
+                    description: Networks contains the status of networks created
+                      by the stack.
                     items:
+                      description: NetworkStatus represents the status of a network
+                        created by the compose stack.
                       properties:
                         createdAt:
+                          description: CreatedAt indicates when the network was created.
                           format: date-time
                           type: string
                         driver:
+                          description: Driver is the network driver type.
                           type: string
                         id:
+                          description: ID is the Docker network ID.
                           type: string
                         name:
+                          description: Name of the network.
                           type: string
                       required:
                       - name
                       type: object
                     type: array
                   parsedAt:
+                    description: ParsedAt indicates when the compose file was last
+                      successfully parsed.
                     format: date-time
                     type: string
                   projectName:
+                    description: ProjectName is the actual project name used for the
+                      compose stack.
                     type: string
                   services:
                     additionalProperties:
+                      description: ServiceStatus represents the status of a service
+                        within the compose stack.
                       properties:
                         containerID:
+                          description: ContainerID is the ID of the running container
+                            for this service.
                           type: string
                         createdAt:
+                          description: CreatedAt indicates when the service was created.
                           format: date-time
                           type: string
                         health:
+                          description: Health indicates the health check status if
+                            configured.
                           properties:
                             failingStreak:
+                              description: FailingStreak is the number of consecutive
+                                failed health checks.
                               format: int32
                               type: integer
                             log:
+                              description: Log contains recent health check results.
                               items:
+                                description: HealthCheckResult represents a single
+                                  health check result.
                                 properties:
                                   end:
+                                    description: End is when the health check completed.
                                     format: date-time
                                     type: string
                                   exitCode:
+                                    description: ExitCode is the exit code of the
+                                      health check.
                                     format: int32
                                     type: integer
                                   output:
+                                    description: Output is the output from the health
+                                      check command.
                                     type: string
                                   start:
+                                    description: Start is when the health check started.
                                     format: date-time
                                     type: string
                                 required:
@@ -312,6 +492,7 @@ spec:
                                 type: object
                               type: array
                             status:
+                              description: Status is the current health status.
                               enum:
                               - starting
                               - healthy
@@ -322,21 +503,33 @@ spec:
                           - status
                           type: object
                         image:
+                          description: Image is the resolved image name and tag for
+                            this service.
                           type: string
                         name:
+                          description: Name of the service as defined in the compose
+                            file.
                           type: string
                         ports:
+                          description: Ports contains the exposed ports for this service.
                           items:
+                            description: PortMapping represents a port mapping for
+                              a service.
                             properties:
                               containerPort:
+                                description: ContainerPort is the port inside the
+                                  container.
                                 format: int32
                                 type: integer
                               hostIP:
+                                description: HostIP is the host IP to bind to.
                                 type: string
                               hostPort:
+                                description: HostPort is the port on the host machine.
                                 format: int32
                                 type: integer
                               protocol:
+                                description: Protocol is the port protocol.
                                 enum:
                                 - TCP
                                 - UDP
@@ -347,9 +540,11 @@ spec:
                             type: object
                           type: array
                         startedAt:
+                          description: StartedAt indicates when the service was started.
                           format: date-time
                           type: string
                         state:
+                          description: State indicates the current state of the service.
                           enum:
                           - pending
                           - creating
@@ -364,20 +559,32 @@ spec:
                       - name
                       - state
                       type: object
+                    description: Services contains the status of individual services
+                      in the stack.
                     type: object
                   volumes:
+                    description: Volumes contains the status of volumes created by
+                      the stack.
                     items:
+                      description: VolumeStatus represents the status of a volume
+                        created by the compose stack.
                       properties:
                         createdAt:
+                          description: CreatedAt indicates when the volume was created.
                           format: date-time
                           type: string
                         driver:
+                          description: Driver is the volume driver type.
                           type: string
                         id:
+                          description: ID is the Docker volume ID.
                           type: string
                         mountpoint:
+                          description: Mountpoint is the volume mount point on the
+                            host.
                           type: string
                         name:
+                          description: Name of the volume.
                           type: string
                       required:
                       - name
@@ -385,21 +592,40 @@ spec:
                     type: array
                 type: object
               conditions:
+                description: Conditions of the resource.
                 items:
+                  description: A Condition that may apply to a resource.
                   properties:
                     lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
                       format: date-time
                       type: string
                     message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
                       type: string
                     observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
                       format: int64
                       type: integer
                     reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
                       type: string
                     status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
                       type: string
                     type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
                       type: string
                   required:
                   - lastTransitionTime
@@ -412,8 +638,17 @@ spec:
                 - type
                 x-kubernetes-list-type: map
               lastHandledReconcileAt:
+                description: |-
+                  LastHandledReconcileAt holds the value of the most recent
+                  reconcile-requested-at annotation token that the controller has
+                  processed. Users can compare this to the annotation to determine
+                  whether a reconcile request has been handled.
                 type: string
               observedGeneration:
+                description: |-
+                  ObservedGeneration is the latest metadata.generation
+                  which resulted in either a ready state, or stalled due to error
+                  it can not recover from without human intervention.
                 format: int64
                 type: integer
             type: object
