@@ -55,6 +55,13 @@ xpkg.build.provider-docker: do.build.images
 # overwrite the xpkg's package.yaml, breaking `crossplane xpkg` installs.
 publish.artifacts:
 	$(foreach r,$(XPKG_REG_ORGS), $(foreach x,$(XPKGS),@$(MAKE) xpkg.release.publish.$(r).$(x)))
+xpkg.release.publish.ghcr.io/rossigee.provider-docker:
+	@$(foreach p,$(XPKG_LINUX_PLATFORMS),$(MAKE) xpkg.build.provider-docker PLATFORM=$(p) || exit 1;)
+	@$(CROSSPLANE_CLI) xpkg push \
+		$(foreach p,$(XPKG_LINUX_PLATFORMS),--package-files $(XPKG_OUTPUT_DIR)/$(p)/provider-docker-$(VERSION).xpkg ) \
+		ghcr.io/rossigee/provider-docker:$(VERSION)
+	@$(OK) Pushed package ghcr.io/rossigee/provider-docker:$(VERSION)
+
 
 # Setup Package Metadata
 CROSSPLANE_VERSION = 2.0.2
