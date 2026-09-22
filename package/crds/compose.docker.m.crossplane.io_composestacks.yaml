@@ -12,6 +12,8 @@ spec:
     - crossplane
     - managed
     - docker
+    - compose
+    - v2
     kind: ComposeStack
     listKind: ComposeStackList
     plural: composestacks
