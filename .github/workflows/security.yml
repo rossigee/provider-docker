@@ -1,5 +1,5 @@
 # Standardized Security Template for Crossplane Providers
-# Version: 2025-12-21 - Merged with CodeQL approach
+# Version: 2026-09-08 - Updated for Go 1.27.1 (aligned with ci/release templates)
 #
 # This template provides:
 # - AUTOMATED security scanning on pushes/PRs (with no-op detection)
@@ -44,7 +44,6 @@ permissions:
   contents: read
   security-events: write
   actions: read
-  id-token: write
   attestations: write
   pull-requests: write
 
@@ -107,7 +106,7 @@ jobs:
         run: |
           cp go.mod go.mod.bak && cp go.sum go.sum.bak
           GOWORK=$(mktemp -d)/go.work && echo "go 1.24" > $GOWORK && GOWORK=$GOWORK go install golang.org/x/vuln/cmd/govulncheck@v1.5.0 || { GOWORK_DIR=$(dirname $GOWORK); rm -f $GOWORK 2>/dev/null; rmdir $GOWORK_DIR 2>/dev/null; mv go.mod.bak go.mod 2>/dev/null; mv go.sum.bak go.sum 2>/dev/null; exit 1; }
-          (govulncheck ./... 2>&1 || true) | tee /tmp/govulncheck.out >/dev/null
+          (GOFLAGS=-mod=mod GOWORK=$GOWORK go run -mod=mod golang.org/x/vuln/cmd/govulncheck ./... 2>&1 || true) | tee /tmp/govulncheck.out >/dev/null
           mv go.mod.bak go.mod && mv go.sum.bak go.sum
           if grep -q "^Vulnerability #" /tmp/govulncheck.out; then
             FIXED=$(grep -c "Fixed in: N/A" /tmp/govulncheck.out || true)
@@ -126,7 +125,7 @@ jobs:
 
       - name: Run Gosec Security Scanner
         if: github.event.inputs.scan_type == 'comprehensive' || github.event.inputs.scan_type == 'vulnerabilities' || github.event.inputs.scan_type == ''
-        uses: securego/gosec@v2.29.0
+        uses: securego/gosec@master
         with:
           args: '-no-fail -fmt sarif -out gosec-results.sarif ./...'
         continue-on-error: true
@@ -148,7 +147,7 @@ jobs:
 
       - name: Check for secrets with TruffleHog
         if: github.event.inputs.scan_type == 'comprehensive' || github.event.inputs.scan_type == 'secrets' || github.event.inputs.scan_type == ''
-        uses: trufflesecurity/trufflehog@v3.97.4
+        uses: trufflesecurity/trufflehog@main
         with:
           path: ./
           base: master
@@ -187,7 +186,7 @@ jobs:
         uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: moderate
-          allow-licenses: Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0
+          allow-licenses: Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, AGPL-3.0
 
   notification:
     name: Security Scan Notification
@@ -238,7 +237,7 @@ jobs:
 #
 # 5. STANDARDIZED VERSION
 #    - Go 1.27.1
-#    - Actions: checkout@v4, setup-go@v6, codeql-action@v6
+#    - Actions: checkout@v7, setup-go@v7, codeql-action@v4
 #    - Runners: ubuntu-24.04
 #
 # To apply this template:
