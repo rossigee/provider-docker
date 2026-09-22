@@ -12,6 +12,7 @@ spec:
     - crossplane
     - managed
     - docker
+    - v2
     kind: Network
     listKind: NetworkList
     plural: networks

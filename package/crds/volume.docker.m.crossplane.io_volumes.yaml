@@ -12,6 +12,7 @@ spec:
     - crossplane
     - managed
     - docker
+    - v2
     kind: Volume
     listKind: VolumeList
     plural: volumes
