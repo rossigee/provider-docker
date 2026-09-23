@@ -118,8 +118,6 @@ xpkg.build: $(UP) $(CROSSPLANE_CLI)
 
 # UP is an alias for CROSSPLANE_CLI
 
-# Alias for CI workflow compatibility
-docker.build: do.build.images
 
 .PHONY: submodules run reviewable go.mod.tidy test.unit.safe go.fmt go.vet.limited
 
