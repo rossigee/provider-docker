@@ -226,4 +226,13 @@ go.fmt:
 go.vet.limited:
 	@echo "Running go vet (APIs only)..."
 	@go vet ./apis/*/v*/register.go ./apis/*/v*/doc.go 2>/dev/null || echo "No API files to vet"
-	@echo "✅ go vet limited completed"
+	@echo "✅ go vet limited completed"# === Standardization follow-up: ghcr xpkg-only publish + img neutralization ===
+xpkg.release.publish.ghcr.io/rossigee.provider-docker:
+	@$(foreach p,$(XPKG_LINUX_PLATFORMS),$(MAKE) xpkg.build.provider-docker PLATFORM=$(p) || exit 1;)
+	@$(CROSSPLANE_CLI) xpkg push \
+		$(foreach p,$(XPKG_LINUX_PLATFORMS),--package-files $(XPKG_OUTPUT_DIR)/$(p)/provider-docker-$(VERSION).xpkg ) \
+		ghcr.io/rossigee/provider-docker:$(VERSION)
+	@$(OK) Pushed package ghcr.io/rossigee/provider-docker:$(VERSION)
+
+XPKG_REG_ORGS ?= ghcr.io/rossigee
+img.release.publish: ; @echo "img.release neutralized for xpkg-only pattern"
