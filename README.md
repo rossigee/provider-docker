@@ -23,7 +23,8 @@ A native Go-based Crossplane v2 provider for managing Docker resources, designed
 
 ## Container Registry
 
-- **Primary**: `ghcr.io/rossigee/provider-docker:latest`
+- **Primary**: `ghcr.io/rossigee/provider-docker:v0.5.4`
+- **Latest**: `ghcr.io/rossigee/provider-docker:latest`
 - **Harbor**: Available via environment configuration
 - **Upbound**: Available via environment configuration
 
@@ -89,7 +90,7 @@ spec:
 ### Installation
 
 ```bash
-kubectl crossplane install provider ghcr.io/rossigee/provider-docker:latest
+kubectl crossplane install provider ghcr.io/rossigee/provider-docker:v0.5.4
 ```
 
 ### Configuration
@@ -122,7 +123,7 @@ See [docs/index.md](docs/index.md) for the full reference and [API coverage gaps
 ### Requirements
 
 - `docker`
-- `go` (1.24+)
+- `go` (1.27.1+)
 - `kubectl`
 - `make`
 - `git` (with submodules)

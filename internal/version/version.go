@@ -18,4 +18,4 @@ limitations under the License.
 package version
 
 // Version is the version of the provider. This value is set at build time.
-var Version = "v0.1.0"
+var Version = "v0.5.4"

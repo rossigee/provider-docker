@@ -1,46 +1,52 @@
 #!/bin/bash
 set -euo pipefail
 
-# release.sh - Automated release script
-# Usage: ./scripts/release.sh <version>
-# Example: ./scripts/release.sh v0.1.0
+repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+cd "$repo_root"
 
-VERSION="${1:-}"
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-PROVIDER_NAME="$(basename "$ROOT_DIR")"
-
-print_status() { echo -e "${BLUE}[INFO]${NC} $1"; }
-print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-
-if [[ -z "$VERSION" ]]; then
-    print_error "Usage: $0 <version>"
-    print_error "Example: $0 v0.1.0"
+if [[ $# -ne 1 ]]; then
+    printf 'Usage: %s vMAJOR.MINOR.PATCH\n' "$0" >&2
     exit 1
 fi
 
-if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    print_error "Invalid version format: $VERSION"
-    print_error "Version must be: vX.Y.Z"
+version=$1
+if [[ ! $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    printf 'Invalid version: %s\n' "$version" >&2
     exit 1
 fi
+
+git fetch origin master
 
 if [[ -n "$(git status --porcelain)" ]]; then
-    print_error "Working directory has uncommitted changes"
+    printf 'Worktree is not clean.\n' >&2
     exit 1
 fi
 
-print_status "Releasing $PROVIDER_NAME version $VERSION"
+if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/master)" ]]; then
+    printf 'HEAD must match origin/master.\n' >&2
+    exit 1
+fi
 
-print_status "Building and publishing..."
-PLATFORMS="${PLATFORMS:-linux/amd64}" make publish VERSION="$VERSION"
+if [[ -f VERSION ]]; then
+    version_file=$(<VERSION)
+    version_file="${version_file#"${version_file%%[![:space:]]*}"}"
+    version_file="${version_file%"${version_file##*[![:space:]]}"}"
+    if [[ $version_file != "$version" ]]; then
+        printf 'VERSION must contain %s.\n' "$version" >&2
+        exit 1
+    fi
+fi
 
-print_success "Released $PROVIDER_NAME $VERSION"
+if git show-ref --verify --quiet "refs/tags/$version"; then
+    printf 'Local tag already exists: %s\n' "$version" >&2
+    exit 1
+fi
+
+remote_tags=$(git ls-remote --tags origin "refs/tags/$version")
+if [[ -n $remote_tags ]]; then
+    printf 'Remote tag already exists: %s\n' "$version" >&2
+    exit 1
+fi
+
+git tag -a "$version" -m "Release $version" HEAD
+git push origin "refs/tags/$version"

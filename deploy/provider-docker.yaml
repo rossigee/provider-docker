@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: provider
-        image: ghcr.io/rossigee/provider-docker:latest
+        image: ghcr.io/rossigee/provider-docker:v0.5.4
         imagePullPolicy: IfNotPresent
         env:
         - name: GOMAXPROCS
