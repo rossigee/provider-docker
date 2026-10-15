@@ -27,7 +27,7 @@ The Docker provider enables declarative management of Docker resources through K
    metadata:
      name: provider-docker
    spec:
-     package: ghcr.io/rossigee/provider-docker:v0.1.0
+     package: ghcr.io/rossigee/provider-docker:v0.5.4
    EOF
    ```
 

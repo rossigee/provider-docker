@@ -22,7 +22,7 @@ img.build:
 img.build.shared:
 	@cp Dockerfile $(IMAGE_TEMP_DIR)
 	@cp -r $(OUTPUT_DIR)/bin/ $(IMAGE_TEMP_DIR)/
-	@docker build $(BUILD_ARGS) --build-arg TARGETOS=$(TARGETOS) --build-arg TARGETARCH=$(TARGETARCH) -t $(IMAGE) $(IMAGE_TEMP_DIR)
+	@docker buildx build --platform $(IMAGE_PLATFORM) $(BUILD_ARGS) --build-arg TARGETOS=$(TARGETOS) --build-arg TARGETARCH=$(TARGETARCH) --load -t $(IMAGE) $(IMAGE_TEMP_DIR)
 
 # ====================================================================================
 # Image Publish
