@@ -123,7 +123,7 @@ See [docs/index.md](docs/index.md) for the full reference and [API coverage gaps
 ### Requirements
 
 - `docker`
-- `go` (1.27.1+)
+- `go` (1.27.2+)
 - `kubectl`
 - `make`
 - `git` (with submodules)
