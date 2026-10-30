@@ -18,18 +18,21 @@ package container
 
 import (
 	"errors"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
 
 	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/go-connections/nat"
 	"github.com/google/go-cmp/cmp"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/rossigee/provider-docker/apis/container/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// netipAddrComparer compares netip.Addr by value; cmp cannot read its unexported fields.
+var netipAddrComparer = cmp.Comparer(func(a, b netip.Addr) bool { return a == b })
 
 // Helper functions for tests
 
@@ -53,8 +56,8 @@ func TestBuildPortConfiguration(t *testing.T) {
 		ports []v1beta1.PortSpec
 	}
 	type want struct {
-		exposedPorts nat.PortSet
-		portBindings nat.PortMap
+		exposedPorts network.PortSet
+		portBindings network.PortMap
 		err          error
 	}
 
@@ -67,8 +70,8 @@ func TestBuildPortConfiguration(t *testing.T) {
 				ports: []v1beta1.PortSpec{},
 			},
 			want: want{
-				exposedPorts: nat.PortSet{},
-				portBindings: nat.PortMap{},
+				exposedPorts: network.PortSet{},
+				portBindings: network.PortMap{},
 				err:          nil,
 			},
 		},
@@ -83,11 +86,11 @@ func TestBuildPortConfiguration(t *testing.T) {
 				},
 			},
 			want: want{
-				exposedPorts: nat.PortSet{
-					"8080/tcp": struct{}{},
+				exposedPorts: network.PortSet{
+					network.MustParsePort("8080/tcp"): struct{}{},
 				},
-				portBindings: nat.PortMap{
-					"8080/tcp": []nat.PortBinding{
+				portBindings: network.PortMap{
+					network.MustParsePort("8080/tcp"): []network.PortBinding{
 						{HostPort: "8080"},
 					},
 				},
@@ -110,15 +113,15 @@ func TestBuildPortConfiguration(t *testing.T) {
 				},
 			},
 			want: want{
-				exposedPorts: nat.PortSet{
-					"8080/tcp": struct{}{},
-					"53/udp":   struct{}{},
+				exposedPorts: network.PortSet{
+					network.MustParsePort("8080/tcp"): struct{}{},
+					network.MustParsePort("53/udp"):   struct{}{},
 				},
-				portBindings: nat.PortMap{
-					"8080/tcp": []nat.PortBinding{
+				portBindings: network.PortMap{
+					network.MustParsePort("8080/tcp"): []network.PortBinding{
 						{HostPort: "8080"},
 					},
-					"53/udp": []nat.PortBinding{
+					network.MustParsePort("53/udp"): []network.PortBinding{
 						{HostPort: "53"},
 					},
 				},
@@ -137,12 +140,12 @@ func TestBuildPortConfiguration(t *testing.T) {
 				},
 			},
 			want: want{
-				exposedPorts: nat.PortSet{
-					"8080/tcp": struct{}{},
+				exposedPorts: network.PortSet{
+					network.MustParsePort("8080/tcp"): struct{}{},
 				},
-				portBindings: nat.PortMap{
-					"8080/tcp": []nat.PortBinding{
-						{HostIP: "127.0.0.1", HostPort: "8080"},
+				portBindings: network.PortMap{
+					network.MustParsePort("8080/tcp"): []network.PortBinding{
+						{HostIP: netip.MustParseAddr("127.0.0.1"), HostPort: "8080"},
 					},
 				},
 				err: nil,
@@ -158,10 +161,10 @@ func TestBuildPortConfiguration(t *testing.T) {
 				},
 			},
 			want: want{
-				exposedPorts: nat.PortSet{
-					"8080/tcp": struct{}{},
+				exposedPorts: network.PortSet{
+					network.MustParsePort("8080/tcp"): struct{}{},
 				},
-				portBindings: nat.PortMap{},
+				portBindings: network.PortMap{},
 				err:          nil,
 			},
 		},
@@ -175,11 +178,11 @@ func TestBuildPortConfiguration(t *testing.T) {
 				},
 			},
 			want: want{
-				exposedPorts: nat.PortSet{
-					"8080/tcp": struct{}{},
+				exposedPorts: network.PortSet{
+					network.MustParsePort("8080/tcp"): struct{}{},
 				},
-				portBindings: nat.PortMap{
-					"8080/tcp": []nat.PortBinding{
+				portBindings: network.PortMap{
+					network.MustParsePort("8080/tcp"): []network.PortBinding{
 						{HostPort: "8080"},
 					},
 				},
@@ -197,11 +200,11 @@ func TestBuildPortConfiguration(t *testing.T) {
 				t.Errorf("buildPortConfiguration() error mismatch (-want +got):\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tc.want.exposedPorts, gotExposedPorts); diff != "" {
+			if diff := cmp.Diff(tc.want.exposedPorts, gotExposedPorts, netipAddrComparer); diff != "" {
 				t.Errorf("buildPortConfiguration() exposedPorts mismatch (-want +got):\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tc.want.portBindings, gotPortBindings); diff != "" {
+			if diff := cmp.Diff(tc.want.portBindings, gotPortBindings, netipAddrComparer); diff != "" {
 				t.Errorf("buildPortConfiguration() portBindings mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -728,7 +731,7 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 					t.Errorf("Expected endpoint for 'my-network' but got nil")
 					return
 				}
-				if endpoint.IPAMConfig == nil || endpoint.IPAMConfig.IPv4Address != "192.168.1.100" {
+				if endpoint.IPAMConfig == nil || endpoint.IPAMConfig.IPv4Address != netip.MustParseAddr("192.168.1.100") {
 					t.Errorf("Expected IPv4Address '192.168.1.100', got %v", endpoint.IPAMConfig)
 				}
 			}
@@ -739,7 +742,7 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 					t.Errorf("Expected endpoint for 'my-network' but got nil")
 					return
 				}
-				if endpoint.IPAMConfig == nil || endpoint.IPAMConfig.IPv6Address != "2001:db8::1" {
+				if endpoint.IPAMConfig == nil || endpoint.IPAMConfig.IPv6Address != netip.MustParseAddr("2001:db8::1") {
 					t.Errorf("Expected IPv6Address '2001:db8::1', got %v", endpoint.IPAMConfig)
 				}
 			}
@@ -751,8 +754,8 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 					return
 				}
 				if endpoint.IPAMConfig == nil ||
-					endpoint.IPAMConfig.IPv4Address != "192.168.1.100" ||
-					endpoint.IPAMConfig.IPv6Address != "2001:db8::1" {
+					endpoint.IPAMConfig.IPv4Address != netip.MustParseAddr("192.168.1.100") ||
+					endpoint.IPAMConfig.IPv6Address != netip.MustParseAddr("2001:db8::1") {
 					t.Errorf("Expected both IP addresses, got %v", endpoint.IPAMConfig)
 				}
 			}
@@ -784,7 +787,7 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 			if name == "MultipleNetworks" && len(gotConfig.EndpointsConfig) == 3 {
 				// Check frontend network
 				frontend := gotConfig.EndpointsConfig["frontend-network"]
-				if frontend == nil || frontend.IPAMConfig == nil || frontend.IPAMConfig.IPv4Address != "192.168.1.100" {
+				if frontend == nil || frontend.IPAMConfig == nil || frontend.IPAMConfig.IPv4Address != netip.MustParseAddr("192.168.1.100") {
 					t.Errorf("Frontend network not configured properly: %v", frontend)
 				}
 				if len(frontend.Aliases) != 1 || frontend.Aliases[0] != "web" {
@@ -799,7 +802,7 @@ func TestBuildNetworkConfiguration(t *testing.T) {
 
 				// Check IPv6 network
 				ipv6Net := gotConfig.EndpointsConfig["ipv6-network"]
-				if ipv6Net == nil || ipv6Net.IPAMConfig == nil || ipv6Net.IPAMConfig.IPv6Address != "2001:db8::1" {
+				if ipv6Net == nil || ipv6Net.IPAMConfig == nil || ipv6Net.IPAMConfig.IPv6Address != netip.MustParseAddr("2001:db8::1") {
 					t.Errorf("IPv6 network not configured properly: %v", ipv6Net)
 				}
 			}
@@ -812,15 +815,15 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 		securityContext *v1beta1.SecurityContext
 	}
 	type want struct {
-		configUser       string            // expected user in config
-		readonlyRootfs   bool              // expected readonly rootfs in hostconfig
-		privileged       *bool             // expected privileged setting (nil = not set)
-		capAdd           strslice.StrSlice // expected capabilities to add
-		capDrop          strslice.StrSlice // expected capabilities to drop
-		securityOptCount int               // number of security options
-		hasSelinux       bool              // whether SELinux options are set
-		hasSeccomp       bool              // whether Seccomp options are set
-		hasAppArmor      bool              // whether AppArmor options are set
+		configUser       string   // expected user in config
+		readonlyRootfs   bool     // expected readonly rootfs in hostconfig
+		privileged       *bool    // expected privileged setting (nil = not set)
+		capAdd           []string // expected capabilities to add
+		capDrop          []string // expected capabilities to drop
+		securityOptCount int      // number of security options
+		hasSelinux       bool     // whether SELinux options are set
+		hasSeccomp       bool     // whether Seccomp options are set
+		hasAppArmor      bool     // whether AppArmor options are set
 		err              error
 	}
 
@@ -936,8 +939,8 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 				configUser:       "",
 				readonlyRootfs:   false,
 				privileged:       nil,
-				capAdd:           strslice.StrSlice{"NET_ADMIN", "SYS_TIME"},
-				capDrop:          strslice.StrSlice{"ALL", "SETUID"},
+				capAdd:           []string{"NET_ADMIN", "SYS_TIME"},
+				capDrop:          []string{"ALL", "SETUID"},
 				securityOptCount: 0,
 				err:              nil,
 			},
@@ -1029,8 +1032,8 @@ func TestBuildSecurityConfiguration(t *testing.T) {
 				configUser:       "1000:1000",
 				readonlyRootfs:   true,
 				privileged:       func() *bool { b := false; return &b }(),
-				capAdd:           strslice.StrSlice{"NET_BIND_SERVICE"},
-				capDrop:          strslice.StrSlice{"ALL"},
+				capAdd:           []string{"NET_BIND_SERVICE"},
+				capDrop:          []string{"ALL"},
 				securityOptCount: 3, // SELinux, Seccomp, AppArmor
 				hasSelinux:       true,
 				hasSeccomp:       true,
@@ -1547,7 +1550,7 @@ func TestBuildContainerConfig(t *testing.T) {
 					case "Image":
 						gotValue = gotConfig.Image
 					case "Cmd":
-						gotValue = []string(gotConfig.Cmd) // Convert StrSlice to []string
+						gotValue = gotConfig.Cmd
 					case "Env":
 						gotValue = gotConfig.Env
 					}

@@ -18,7 +18,10 @@ package network
 
 import (
 	"context"
+	"net/netip"
 	"strings"
+
+	dockerclient "github.com/moby/moby/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
@@ -28,7 +31,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
-	"github.com/docker/docker/api/types/network"
+	"github.com/moby/moby/api/types/network"
 	"github.com/pkg/errors"
 	networkv1beta1 "github.com/rossigee/provider-docker/apis/network/v1beta1"
 	"github.com/rossigee/provider-docker/internal/clients"
@@ -136,7 +139,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		return managed.ExternalObservation{ResourceExists: false}, nil
 	}
 
-	netInspect, err := c.client.NetworkInspect(ctx, networkName, network.InspectOptions{})
+	netInspect, err := c.client.NetworkInspect(ctx, networkName, dockerclient.NetworkInspectOptions{})
 	if err != nil {
 		if isNotFoundError(err) {
 			return managed.ExternalObservation{ResourceExists: false}, nil
@@ -168,7 +171,10 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	c.logger.Debug("Creating network", "name", cr.Name)
 
-	name, opts := c.buildCreateOptions(cr)
+	name, opts, err := c.buildCreateOptions(cr)
+	if err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, errNetworkCreate)
+	}
 
 	resp, err := c.client.NetworkCreate(ctx, name, opts)
 	if err != nil {
@@ -178,7 +184,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	meta.SetExternalName(cr, resp.ID)
 
 	// Inspect the created network to get full details
-	netInspect, err := c.client.NetworkInspect(ctx, resp.ID, network.InspectOptions{})
+	netInspect, err := c.client.NetworkInspect(ctx, resp.ID, dockerclient.NetworkInspectOptions{})
 	if err != nil {
 		return managed.ExternalCreation{}, errors.Wrap(err, errNetworkInspect)
 	}
@@ -220,10 +226,10 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 // buildCreateOptions constructs network creation options from the managed resource spec.
-func (c *external) buildCreateOptions(cr *networkv1beta1.Network) (string, network.CreateOptions) {
+func (c *external) buildCreateOptions(cr *networkv1beta1.Network) (string, dockerclient.NetworkCreateOptions, error) {
 	spec := cr.Spec.ForProvider
 
-	opts := network.CreateOptions{
+	opts := dockerclient.NetworkCreateOptions{
 		Driver:     getStringValue(spec.Driver, "bridge"),
 		Internal:   getBoolValue(spec.Internal, false),
 		Attachable: getBoolValue(spec.Attachable, false),
@@ -251,23 +257,42 @@ func (c *external) buildCreateOptions(cr *networkv1beta1.Network) (string, netwo
 			ipamConfig := network.IPAMConfig{}
 
 			if entry.Subnet != nil {
-				ipamConfig.Subnet = *entry.Subnet
+				subnet, err := netip.ParsePrefix(*entry.Subnet)
+				if err != nil {
+					return "", opts, errors.Wrapf(err, "invalid IPAM subnet %q", *entry.Subnet)
+				}
+				ipamConfig.Subnet = subnet
 			}
 			if entry.IPRange != nil {
-				ipamConfig.IPRange = *entry.IPRange
+				ipRange, err := netip.ParsePrefix(*entry.IPRange)
+				if err != nil {
+					return "", opts, errors.Wrapf(err, "invalid IPAM ipRange %q", *entry.IPRange)
+				}
+				ipamConfig.IPRange = ipRange
 			}
 			if entry.Gateway != nil {
-				ipamConfig.Gateway = *entry.Gateway
+				gateway, err := netip.ParseAddr(*entry.Gateway)
+				if err != nil {
+					return "", opts, errors.Wrapf(err, "invalid IPAM gateway %q", *entry.Gateway)
+				}
+				ipamConfig.Gateway = gateway
 			}
 			if entry.AuxAddresses != nil {
-				ipamConfig.AuxAddress = entry.AuxAddresses
+				ipamConfig.AuxAddress = make(map[string]netip.Addr, len(entry.AuxAddresses))
+				for key, value := range entry.AuxAddresses {
+					addr, err := netip.ParseAddr(value)
+					if err != nil {
+						return "", opts, errors.Wrapf(err, "invalid IPAM auxiliary address %q", value)
+					}
+					ipamConfig.AuxAddress[key] = addr
+				}
 			}
 
 			opts.IPAM.Config = append(opts.IPAM.Config, ipamConfig)
 		}
 	}
 
-	return name, opts
+	return name, opts, nil
 }
 
 // updateStatus updates the network status with observed values.
@@ -297,17 +322,23 @@ func (c *external) updateStatus(cr *networkv1beta1.Network, netInspect network.I
 
 		for _, cfg := range netInspect.IPAM.Config {
 			ipamEntry := networkv1beta1.IPAMConfigEntry{}
-			if cfg.Subnet != "" {
-				ipamEntry.Subnet = &cfg.Subnet
+			if cfg.Subnet.IsValid() {
+				subnet := cfg.Subnet.String()
+				ipamEntry.Subnet = &subnet
 			}
-			if cfg.IPRange != "" {
-				ipamEntry.IPRange = &cfg.IPRange
+			if cfg.IPRange.IsValid() {
+				ipRange := cfg.IPRange.String()
+				ipamEntry.IPRange = &ipRange
 			}
-			if cfg.Gateway != "" {
-				ipamEntry.Gateway = &cfg.Gateway
+			if cfg.Gateway.IsValid() {
+				gateway := cfg.Gateway.String()
+				ipamEntry.Gateway = &gateway
 			}
 			if cfg.AuxAddress != nil {
-				ipamEntry.AuxAddresses = cfg.AuxAddress
+				ipamEntry.AuxAddresses = make(map[string]string, len(cfg.AuxAddress))
+				for key, addr := range cfg.AuxAddress {
+					ipamEntry.AuxAddresses[key] = addr.String()
+				}
 			}
 			cr.Status.AtProvider.IPAM.Config = append(cr.Status.AtProvider.IPAM.Config, ipamEntry)
 		}
@@ -320,9 +351,9 @@ func (c *external) updateStatus(cr *networkv1beta1.Network, netInspect network.I
 			cr.Status.AtProvider.Containers[id] = &networkv1beta1.NetworkContainer{
 				Name:        container.Name,
 				EndpointID:  container.EndpointID,
-				MacAddress:  container.MacAddress,
-				IPv4Address: container.IPv4Address,
-				IPv6Address: container.IPv6Address,
+				MacAddress:  container.MacAddress.String(),
+				IPv4Address: clients.PrefixString(container.IPv4Address),
+				IPv6Address: clients.PrefixString(container.IPv6Address),
 			}
 		}
 	}

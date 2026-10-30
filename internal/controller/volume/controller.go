@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 
+	dockerclient "github.com/moby/moby/client"
+
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
@@ -29,7 +31,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
-	"github.com/docker/docker/api/types/volume"
+	"github.com/moby/moby/api/types/volume"
 	"github.com/pkg/errors"
 	volumev1beta1 "github.com/rossigee/provider-docker/apis/volume/v1beta1"
 	"github.com/rossigee/provider-docker/internal/clients"
@@ -214,10 +216,10 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 // buildCreateOptions constructs volume creation options from the managed resource spec.
-func (c *external) buildCreateOptions(cr *volumev1beta1.Volume) volume.CreateOptions {
+func (c *external) buildCreateOptions(cr *volumev1beta1.Volume) dockerclient.VolumeCreateOptions {
 	spec := cr.Spec.ForProvider
 
-	opts := volume.CreateOptions{
+	opts := dockerclient.VolumeCreateOptions{
 		Driver:     getStringValue(spec.Driver, "local"),
 		DriverOpts: spec.DriverOpts,
 		Labels:     spec.Labels,

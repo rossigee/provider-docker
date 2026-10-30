@@ -19,9 +19,12 @@ package compose
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
+
+	dockerclient "github.com/moby/moby/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
@@ -29,11 +32,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/api/types/network"
 	"github.com/pkg/errors"
 	composev1beta1 "github.com/rossigee/provider-docker/apis/compose/v1beta1"
 	containerv1beta1 "github.com/rossigee/provider-docker/apis/container/v1beta1"
@@ -211,7 +212,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 		// Safely access State and Config with nil checks
 		if containerInfo.State != nil {
-			status.State = containerInfo.State.Status
+			status.State = string(containerInfo.State.Status)
 		} else {
 			status.State = "unknown"
 		}
@@ -328,11 +329,9 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 	// List all containers with this project name and remove them
 	// This is a simplified approach - a full implementation would track
 	// exactly which containers belong to this stack
-	containers, err := c.service.ContainerList(ctx, container.ListOptions{
-		All: true,
-		Filters: filters.NewArgs(
-			filters.Arg("label", fmt.Sprintf("com.docker.compose.project=%s", projectName)),
-		),
+	containers, err := c.service.ContainerList(ctx, dockerclient.ContainerListOptions{
+		All:     true,
+		Filters: dockerclient.Filters{}.Add("label", fmt.Sprintf("com.docker.compose.project=%s", projectName)),
 	})
 	if err != nil {
 		return managed.ExternalDelete{}, errors.Wrap(err, "cannot list containers")
@@ -341,13 +340,13 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 	for _, cont := range containers {
 		// Stop and remove the container
 		timeout := 10 // 10 second timeout
-		stopOpts := container.StopOptions{Timeout: &timeout}
+		stopOpts := dockerclient.ContainerStopOptions{Timeout: &timeout}
 		err := c.service.ContainerStop(ctx, cont.ID, stopOpts)
 		if err != nil {
 			return managed.ExternalDelete{}, errors.Wrapf(err, "cannot stop container %s", cont.ID)
 		}
 
-		err = c.service.ContainerRemove(ctx, cont.ID, container.RemoveOptions{
+		err = c.service.ContainerRemove(ctx, cont.ID, dockerclient.ContainerRemoveOptions{
 			Force: true,
 		})
 		if err != nil {
@@ -546,7 +545,7 @@ func (c *external) createContainer(ctx context.Context, cr *composev1beta1.Compo
 	}
 
 	if startOnCreate {
-		err = c.service.ContainerStart(ctx, resp.ID, container.StartOptions{})
+		err = c.service.ContainerStart(ctx, resp.ID, dockerclient.ContainerStartOptions{})
 		if err != nil {
 			return errors.Wrapf(err, "failed to start container %s", containerName)
 		}
@@ -611,7 +610,11 @@ func (c *external) convertContainerSpec(ctx context.Context, cr *composev1beta1.
 
 	// Set exposed ports
 	if len(spec.Ports) > 0 {
-		config.ExposedPorts = c.convertExposedPorts(spec.Ports)
+		exposed, err := c.convertExposedPorts(spec.Ports)
+		if err != nil {
+			return nil, nil, nil, errors.Wrap(err, "failed to convert exposed ports")
+		}
+		config.ExposedPorts = exposed
 	}
 
 	// Host configuration
@@ -634,7 +637,11 @@ func (c *external) convertContainerSpec(ctx context.Context, cr *composev1beta1.
 
 	// Set port bindings
 	if len(spec.Ports) > 0 {
-		hostConfig.PortBindings = c.convertPortBindings(spec.Ports)
+		bindings, err := c.convertPortBindings(spec.Ports)
+		if err != nil {
+			return nil, nil, nil, errors.Wrap(err, "failed to convert port bindings")
+		}
+		hostConfig.PortBindings = bindings
 	}
 
 	// Set volume mounts
@@ -649,7 +656,15 @@ func (c *external) convertContainerSpec(ctx context.Context, cr *composev1beta1.
 
 	// Set DNS configuration
 	if len(spec.DNS) > 0 {
-		hostConfig.DNS = spec.DNS
+		dnsServers := make([]netip.Addr, 0, len(spec.DNS))
+		for _, server := range spec.DNS {
+			addr, err := netip.ParseAddr(server)
+			if err != nil {
+				return nil, nil, nil, errors.Wrapf(err, "invalid DNS server %q", server)
+			}
+			dnsServers = append(dnsServers, addr)
+		}
+		hostConfig.DNS = dnsServers
 	}
 	if len(spec.DNSSearch) > 0 {
 		hostConfig.DNSSearch = spec.DNSSearch
@@ -681,7 +696,11 @@ func (c *external) convertContainerSpec(ctx context.Context, cr *composev1beta1.
 	// Network configuration
 	networkConfig := &network.NetworkingConfig{}
 	if len(spec.Networks) > 0 {
-		networkConfig.EndpointsConfig = c.convertNetworkAttachments(spec.Networks)
+		endpoints, err := c.convertNetworkAttachments(spec.Networks)
+		if err != nil {
+			return nil, nil, nil, errors.Wrap(err, "failed to convert network attachments")
+		}
+		networkConfig.EndpointsConfig = endpoints
 	}
 
 	return config, hostConfig, networkConfig, nil
@@ -778,21 +797,24 @@ func (c *external) getValueFromContainerConfigMap(ctx context.Context, cr *compo
 	return data, nil
 }
 
-func (c *external) convertExposedPorts(ports []containerv1beta1.PortSpec) nat.PortSet {
-	exposedPorts := make(nat.PortSet)
+func (c *external) convertExposedPorts(ports []containerv1beta1.PortSpec) (network.PortSet, error) {
+	exposedPorts := make(network.PortSet)
 	for _, port := range ports {
 		protocol := "tcp"
 		if port.Protocol != nil {
 			protocol = strings.ToLower(*port.Protocol)
 		}
-		natPort, _ := nat.NewPort(protocol, fmt.Sprintf("%d", port.ContainerPort))
-		exposedPorts[natPort] = struct{}{}
+		dockerPort, err := network.ParsePort(fmt.Sprintf("%d/%s", port.ContainerPort, protocol))
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid exposed port %d/%s", port.ContainerPort, protocol)
+		}
+		exposedPorts[dockerPort] = struct{}{}
 	}
-	return exposedPorts
+	return exposedPorts, nil
 }
 
-func (c *external) convertPortBindings(ports []containerv1beta1.PortSpec) nat.PortMap {
-	portBindings := make(nat.PortMap)
+func (c *external) convertPortBindings(ports []containerv1beta1.PortSpec) (network.PortMap, error) {
+	portBindings := make(network.PortMap)
 	for _, port := range ports {
 		if port.HostPort == nil {
 			continue // No host port binding
@@ -803,19 +825,26 @@ func (c *external) convertPortBindings(ports []containerv1beta1.PortSpec) nat.Po
 			protocol = strings.ToLower(*port.Protocol)
 		}
 
-		natPort, _ := nat.NewPort(protocol, fmt.Sprintf("%d", port.ContainerPort))
+		dockerPort, err := network.ParsePort(fmt.Sprintf("%d/%s", port.ContainerPort, protocol))
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid port binding %d/%s", port.ContainerPort, protocol)
+		}
 
-		binding := nat.PortBinding{
+		binding := network.PortBinding{
 			HostPort: fmt.Sprintf("%d", *port.HostPort),
 		}
 
 		if port.HostIP != nil {
-			binding.HostIP = *port.HostIP
+			hostIP, err := netip.ParseAddr(*port.HostIP)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid host IP %q", *port.HostIP)
+			}
+			binding.HostIP = hostIP
 		}
 
-		portBindings[natPort] = append(portBindings[natPort], binding)
+		portBindings[dockerPort] = append(portBindings[dockerPort], binding)
 	}
-	return portBindings
+	return portBindings, nil
 }
 
 func (c *external) convertVolumeMounts(volumes []containerv1beta1.VolumeMount) ([]string, []mount.Mount, error) {
@@ -864,22 +893,30 @@ func (c *external) convertVolumeMounts(volumes []containerv1beta1.VolumeMount) (
 	return binds, mounts, nil
 }
 
-func (c *external) convertNetworkAttachments(networks []containerv1beta1.NetworkAttachment) map[string]*network.EndpointSettings {
+func (c *external) convertNetworkAttachments(networks []containerv1beta1.NetworkAttachment) (map[string]*network.EndpointSettings, error) {
 	endpoints := make(map[string]*network.EndpointSettings)
 	for _, net := range networks {
 		endpoint := &network.EndpointSettings{}
 
 		if net.IPAddress != nil {
+			ipv4, err := netip.ParseAddr(*net.IPAddress)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid IPv4 address %q", *net.IPAddress)
+			}
 			endpoint.IPAMConfig = &network.EndpointIPAMConfig{
-				IPv4Address: *net.IPAddress,
+				IPv4Address: ipv4,
 			}
 		}
 
 		if net.IPv6Address != nil {
+			ipv6, err := netip.ParseAddr(*net.IPv6Address)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid IPv6 address %q", *net.IPv6Address)
+			}
 			if endpoint.IPAMConfig == nil {
 				endpoint.IPAMConfig = &network.EndpointIPAMConfig{}
 			}
-			endpoint.IPAMConfig.IPv6Address = *net.IPv6Address
+			endpoint.IPAMConfig.IPv6Address = ipv6
 		}
 
 		if len(net.Aliases) > 0 {
@@ -888,7 +925,7 @@ func (c *external) convertNetworkAttachments(networks []containerv1beta1.Network
 
 		endpoints[net.Name] = endpoint
 	}
-	return endpoints
+	return endpoints, nil
 }
 
 func (c *external) setResourceLimits(hostConfig *container.HostConfig, resources *containerv1beta1.ResourceRequirements) {
