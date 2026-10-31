@@ -25,18 +25,19 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/system"
-	"github.com/docker/docker/api/types/volume"
-	dockerclient "github.com/docker/docker/client"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/system"
+	"github.com/moby/moby/api/types/volume"
+	dockerclient "github.com/moby/moby/client"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/rossigee/provider-docker/apis/v1beta1"
@@ -46,6 +47,22 @@ import (
 	ktypes "k8s.io/apimachinery/pkg/types"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// AddrString returns the textual form of addr, or "" when addr is unset.
+func AddrString(addr netip.Addr) string {
+	if !addr.IsValid() {
+		return ""
+	}
+	return addr.String()
+}
+
+// PrefixString returns the textual form of prefix, or "" when prefix is unset.
+func PrefixString(prefix netip.Prefix) string {
+	if !prefix.IsValid() {
+		return ""
+	}
+	return prefix.String()
+}
 
 // NotFoundError represents a resource not found error
 type NotFoundError struct {
@@ -79,13 +96,13 @@ type DockerClient interface {
 	// Container operations
 	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig,
 		networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error)
-	ContainerStart(ctx context.Context, containerID string, options container.StartOptions) error
-	ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error
-	ContainerRestart(ctx context.Context, containerID string, options container.StopOptions) error
-	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
+	ContainerStart(ctx context.Context, containerID string, options dockerclient.ContainerStartOptions) error
+	ContainerStop(ctx context.Context, containerID string, options dockerclient.ContainerStopOptions) error
+	ContainerRestart(ctx context.Context, containerID string, options dockerclient.ContainerStopOptions) error
+	ContainerRemove(ctx context.Context, containerID string, options dockerclient.ContainerRemoveOptions) error
 	ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error)
-	ContainerList(ctx context.Context, options container.ListOptions) ([]container.Summary, error)
-	ContainerLogs(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error)
+	ContainerList(ctx context.Context, options dockerclient.ContainerListOptions) ([]container.Summary, error)
+	ContainerLogs(ctx context.Context, containerID string, options dockerclient.ContainerLogsOptions) (io.ReadCloser, error)
 	// ContainerStats temporarily disabled due to complex interface mocking
 	// ContainerStats(ctx context.Context, containerID string, stream bool) (container.StatsResponseReader, error)
 	ContainerUpdate(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.UpdateResponse, error)
@@ -94,29 +111,28 @@ type DockerClient interface {
 	ContainerUnpause(ctx context.Context, containerID string) error
 
 	// Image operations
-	ImagePull(ctx context.Context, refStr string, options image.PullOptions) (io.ReadCloser, error)
-	ImageList(ctx context.Context, options image.ListOptions) ([]image.Summary, error)
-	ImageInspectWithRaw(ctx context.Context, imageID string) (image.InspectResponse, []byte, error)
-	ImageRemove(ctx context.Context, imageID string, options image.RemoveOptions) ([]image.DeleteResponse, error)
+	ImagePull(ctx context.Context, refStr string, options dockerclient.ImagePullOptions) (io.ReadCloser, error)
+	ImageList(ctx context.Context, options dockerclient.ImageListOptions) ([]image.Summary, error)
+	ImageRemove(ctx context.Context, imageID string, options dockerclient.ImageRemoveOptions) ([]image.DeleteResponse, error)
 
 	// Volume operations
-	VolumeCreate(ctx context.Context, options volume.CreateOptions) (volume.Volume, error)
+	VolumeCreate(ctx context.Context, options dockerclient.VolumeCreateOptions) (volume.Volume, error)
 	VolumeInspect(ctx context.Context, volumeID string) (volume.Volume, error)
 	VolumeRemove(ctx context.Context, volumeID string, force bool) error
-	VolumeList(ctx context.Context, options volume.ListOptions) (volume.ListResponse, error)
+	VolumeList(ctx context.Context, options dockerclient.VolumeListOptions) (volume.ListResponse, error)
 
 	// Network operations
-	NetworkCreate(ctx context.Context, name string, options network.CreateOptions) (network.CreateResponse, error)
-	NetworkInspect(ctx context.Context, networkID string, options network.InspectOptions) (network.Inspect, error)
+	NetworkCreate(ctx context.Context, name string, options dockerclient.NetworkCreateOptions) (network.CreateResponse, error)
+	NetworkInspect(ctx context.Context, networkID string, options dockerclient.NetworkInspectOptions) (network.Inspect, error)
 	NetworkRemove(ctx context.Context, networkID string) error
-	NetworkList(ctx context.Context, options network.ListOptions) ([]network.Summary, error)
+	NetworkList(ctx context.Context, options dockerclient.NetworkListOptions) ([]network.Summary, error)
 	NetworkConnect(ctx context.Context, networkID, containerID string, config *network.EndpointSettings) error
 	NetworkDisconnect(ctx context.Context, networkID, containerID string, force bool) error
 
 	// System operations
-	Ping(ctx context.Context) (types.Ping, error)
+	Ping(ctx context.Context) (dockerclient.PingResult, error)
 	Info(ctx context.Context) (system.Info, error)
-	ServerVersion(ctx context.Context) (types.Version, error)
+	ServerVersion(ctx context.Context) (dockerclient.ServerVersionResult, error)
 
 	// Close the client
 	Close() error
@@ -129,6 +145,165 @@ type dockerClient struct {
 
 // Ensure dockerClient implements DockerClient interface
 var _ DockerClient = (*dockerClient)(nil)
+
+// The moby client takes option structs and returns result structs. The methods
+// below adapt it to the DockerClient interface, so callers keep the shapes they use.
+
+func (c *dockerClient) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig,
+	networkingConfig *network.NetworkingConfig, platform *specs.Platform, containerName string) (container.CreateResponse, error) {
+	res, err := c.Client.ContainerCreate(ctx, dockerclient.ContainerCreateOptions{
+		Config:           config,
+		HostConfig:       hostConfig,
+		NetworkingConfig: networkingConfig,
+		Platform:         platform,
+		Name:             containerName,
+	})
+	return container.CreateResponse{ID: res.ID, Warnings: res.Warnings}, err
+}
+
+func (c *dockerClient) ContainerStart(ctx context.Context, containerID string, options dockerclient.ContainerStartOptions) error {
+	_, err := c.Client.ContainerStart(ctx, containerID, options)
+	return err
+}
+
+func (c *dockerClient) ContainerStop(ctx context.Context, containerID string, options dockerclient.ContainerStopOptions) error {
+	_, err := c.Client.ContainerStop(ctx, containerID, options)
+	return err
+}
+
+func (c *dockerClient) ContainerRestart(ctx context.Context, containerID string, options dockerclient.ContainerStopOptions) error {
+	_, err := c.Client.ContainerRestart(ctx, containerID, dockerclient.ContainerRestartOptions(options))
+	return err
+}
+
+func (c *dockerClient) ContainerRemove(ctx context.Context, containerID string, options dockerclient.ContainerRemoveOptions) error {
+	_, err := c.Client.ContainerRemove(ctx, containerID, options)
+	return err
+}
+
+func (c *dockerClient) ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error) {
+	res, err := c.Client.ContainerInspect(ctx, containerID, dockerclient.ContainerInspectOptions{})
+	return res.Container, err
+}
+
+func (c *dockerClient) ContainerList(ctx context.Context, options dockerclient.ContainerListOptions) ([]container.Summary, error) {
+	res, err := c.Client.ContainerList(ctx, options)
+	return res.Items, err
+}
+
+func (c *dockerClient) ContainerLogs(ctx context.Context, containerID string, options dockerclient.ContainerLogsOptions) (io.ReadCloser, error) {
+	return c.Client.ContainerLogs(ctx, containerID, options)
+}
+
+func (c *dockerClient) ContainerUpdate(ctx context.Context, containerID string, updateConfig container.UpdateConfig) (container.UpdateResponse, error) {
+	resources := updateConfig.Resources
+	restartPolicy := updateConfig.RestartPolicy
+	res, err := c.Client.ContainerUpdate(ctx, containerID, dockerclient.ContainerUpdateOptions{
+		Resources:     &resources,
+		RestartPolicy: &restartPolicy,
+	})
+	return container.UpdateResponse{Warnings: res.Warnings}, err
+}
+
+func (c *dockerClient) ContainerRename(ctx context.Context, containerID, newContainerName string) error {
+	_, err := c.Client.ContainerRename(ctx, containerID, dockerclient.ContainerRenameOptions{NewName: newContainerName})
+	return err
+}
+
+func (c *dockerClient) ContainerPause(ctx context.Context, containerID string) error {
+	_, err := c.Client.ContainerPause(ctx, containerID, dockerclient.ContainerPauseOptions{})
+	return err
+}
+
+func (c *dockerClient) ContainerUnpause(ctx context.Context, containerID string) error {
+	_, err := c.Client.ContainerUnpause(ctx, containerID, dockerclient.ContainerUnpauseOptions{})
+	return err
+}
+
+func (c *dockerClient) ImagePull(ctx context.Context, refStr string, options dockerclient.ImagePullOptions) (io.ReadCloser, error) {
+	return c.Client.ImagePull(ctx, refStr, options)
+}
+
+func (c *dockerClient) ImageList(ctx context.Context, options dockerclient.ImageListOptions) ([]image.Summary, error) {
+	res, err := c.Client.ImageList(ctx, options)
+	return res.Items, err
+}
+
+func (c *dockerClient) ImageRemove(ctx context.Context, imageID string, options dockerclient.ImageRemoveOptions) ([]image.DeleteResponse, error) {
+	res, err := c.Client.ImageRemove(ctx, imageID, options)
+	return res.Items, err
+}
+
+func (c *dockerClient) VolumeCreate(ctx context.Context, options dockerclient.VolumeCreateOptions) (volume.Volume, error) {
+	res, err := c.Client.VolumeCreate(ctx, options)
+	return res.Volume, err
+}
+
+func (c *dockerClient) VolumeInspect(ctx context.Context, volumeID string) (volume.Volume, error) {
+	res, err := c.Client.VolumeInspect(ctx, volumeID, dockerclient.VolumeInspectOptions{})
+	return res.Volume, err
+}
+
+func (c *dockerClient) VolumeRemove(ctx context.Context, volumeID string, force bool) error {
+	_, err := c.Client.VolumeRemove(ctx, volumeID, dockerclient.VolumeRemoveOptions{Force: force})
+	return err
+}
+
+func (c *dockerClient) VolumeList(ctx context.Context, options dockerclient.VolumeListOptions) (volume.ListResponse, error) {
+	res, err := c.Client.VolumeList(ctx, options)
+	volumes := make([]volume.Volume, 0, len(res.Items))
+	volumes = append(volumes, res.Items...)
+	return volume.ListResponse{Volumes: volumes, Warnings: res.Warnings}, err
+}
+
+func (c *dockerClient) NetworkCreate(ctx context.Context, name string, options dockerclient.NetworkCreateOptions) (network.CreateResponse, error) {
+	res, err := c.Client.NetworkCreate(ctx, name, options)
+	return network.CreateResponse{ID: res.ID, Warning: strings.Join(res.Warning, "\n")}, err
+}
+
+func (c *dockerClient) NetworkInspect(ctx context.Context, networkID string, options dockerclient.NetworkInspectOptions) (network.Inspect, error) {
+	res, err := c.Client.NetworkInspect(ctx, networkID, options)
+	return res.Network, err
+}
+
+func (c *dockerClient) NetworkRemove(ctx context.Context, networkID string) error {
+	_, err := c.Client.NetworkRemove(ctx, networkID, dockerclient.NetworkRemoveOptions{})
+	return err
+}
+
+func (c *dockerClient) NetworkList(ctx context.Context, options dockerclient.NetworkListOptions) ([]network.Summary, error) {
+	res, err := c.Client.NetworkList(ctx, options)
+	return res.Items, err
+}
+
+func (c *dockerClient) NetworkConnect(ctx context.Context, networkID, containerID string, config *network.EndpointSettings) error {
+	_, err := c.Client.NetworkConnect(ctx, networkID, dockerclient.NetworkConnectOptions{
+		Container:      containerID,
+		EndpointConfig: config,
+	})
+	return err
+}
+
+func (c *dockerClient) NetworkDisconnect(ctx context.Context, networkID, containerID string, force bool) error {
+	_, err := c.Client.NetworkDisconnect(ctx, networkID, dockerclient.NetworkDisconnectOptions{
+		Container: containerID,
+		Force:     force,
+	})
+	return err
+}
+
+func (c *dockerClient) Ping(ctx context.Context) (dockerclient.PingResult, error) {
+	return c.Client.Ping(ctx, dockerclient.PingOptions{})
+}
+
+func (c *dockerClient) ServerVersion(ctx context.Context) (dockerclient.ServerVersionResult, error) {
+	return c.Client.ServerVersion(ctx, dockerclient.ServerVersionOptions{})
+}
+
+func (c *dockerClient) Info(ctx context.Context) (system.Info, error) {
+	res, err := c.Client.Info(ctx, dockerclient.InfoOptions{})
+	return res.Info, err
+}
 
 // NewDockerClient creates a new Docker client from a ProviderConfig.
 func NewDockerClient(ctx context.Context, k8s k8sclient.Client, mg resource.Managed) (DockerClient, error) {
@@ -165,12 +340,9 @@ func createDockerClient(pc *v1beta1.ProviderConfig, creds *DockerCredentials) (*
 		opts = append(opts, dockerclient.WithHost(*pc.Spec.Host))
 	}
 
-	// Set API version if specified
+	// Pin the API version if specified; otherwise the client negotiates it with the daemon.
 	if pc.Spec.APIVersion != nil {
-		opts = append(opts, dockerclient.WithAPIVersionNegotiation())
-		opts = append(opts, dockerclient.WithVersion(*pc.Spec.APIVersion))
-	} else {
-		opts = append(opts, dockerclient.WithAPIVersionNegotiation())
+		opts = append(opts, dockerclient.WithAPIVersion(*pc.Spec.APIVersion))
 	}
 
 	// Configure TLS if needed
@@ -189,7 +361,7 @@ func createDockerClient(pc *v1beta1.ProviderConfig, creds *DockerCredentials) (*
 	}
 	opts = append(opts, dockerclient.WithTimeout(timeout))
 
-	return dockerclient.NewClientWithOpts(opts...)
+	return dockerclient.New(opts...)
 }
 
 // createHTTPClientWithTLS creates an HTTP client with TLS configuration.

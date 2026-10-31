@@ -21,9 +21,12 @@ package container
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
+
+	dockerclient "github.com/moby/moby/client"
 
 	xpcontroller "github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
@@ -32,10 +35,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	xpv1 "github.com/crossplane/crossplane/apis/v2/core/v2"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/api/types/network"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/rossigee/provider-docker/apis/container/v1beta1"
@@ -218,7 +220,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	// Start the container if requested
 	if cr.Spec.ForProvider.StartOnCreate == nil || *cr.Spec.ForProvider.StartOnCreate {
-		if err := c.client.ContainerStart(ctx, response.ID, container.StartOptions{}); err != nil {
+		if err := c.client.ContainerStart(ctx, response.ID, dockerclient.ContainerStartOptions{}); err != nil {
 			return managed.ExternalCreation{}, errors.Wrap(err, "cannot start container")
 		}
 	}
@@ -269,14 +271,14 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	// Stop the container first
 	timeout := 10
-	if err := c.client.ContainerStop(ctx, containerID, container.StopOptions{Timeout: &timeout}); err != nil {
+	if err := c.client.ContainerStop(ctx, containerID, dockerclient.ContainerStopOptions{Timeout: &timeout}); err != nil {
 		if !isNotFound(err) {
 			return managed.ExternalDelete{}, errors.Wrap(err, "cannot stop container")
 		}
 	}
 
 	// Remove the container
-	if err := c.client.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true}); err != nil {
+	if err := c.client.ContainerRemove(ctx, containerID, dockerclient.ContainerRemoveOptions{Force: true}); err != nil {
 		if !isNotFound(err) {
 			return managed.ExternalDelete{}, errors.Wrap(err, errDeleteFailed)
 		}
@@ -391,9 +393,9 @@ func (b *defaultContainerConfigBuilder) BuildContainerConfig(cr *v1beta1.Contain
 }
 
 // buildPortConfiguration builds Docker port configuration from Crossplane port specs.
-func (b *defaultContainerConfigBuilder) buildPortConfiguration(ports []v1beta1.PortSpec) (nat.PortSet, nat.PortMap, error) {
-	exposedPorts := make(nat.PortSet)
-	portBindings := make(nat.PortMap)
+func (b *defaultContainerConfigBuilder) buildPortConfiguration(ports []v1beta1.PortSpec) (network.PortSet, network.PortMap, error) {
+	exposedPorts := make(network.PortSet)
+	portBindings := make(network.PortMap)
 
 	for _, portSpec := range ports {
 		protocol := "tcp"
@@ -402,18 +404,25 @@ func (b *defaultContainerConfigBuilder) buildPortConfiguration(ports []v1beta1.P
 		}
 
 		// Create the Docker port format
-		dockerPort := nat.Port(fmt.Sprintf("%d/%s", portSpec.ContainerPort, protocol))
+		dockerPort, err := network.ParsePort(fmt.Sprintf("%d/%s", portSpec.ContainerPort, protocol))
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "invalid container port %d/%s", portSpec.ContainerPort, protocol)
+		}
 		exposedPorts[dockerPort] = struct{}{}
 
 		// Add port binding if host port is specified
 		if portSpec.HostPort != nil {
-			hostBinding := nat.PortBinding{
+			hostBinding := network.PortBinding{
 				HostPort: strconv.Itoa(int(*portSpec.HostPort)),
 			}
 			if portSpec.HostIP != nil {
-				hostBinding.HostIP = *portSpec.HostIP
+				hostIP, err := netip.ParseAddr(*portSpec.HostIP)
+				if err != nil {
+					return nil, nil, errors.Wrapf(err, "invalid host IP %q", *portSpec.HostIP)
+				}
+				hostBinding.HostIP = hostIP
 			}
-			portBindings[dockerPort] = []nat.PortBinding{hostBinding}
+			portBindings[dockerPort] = []network.PortBinding{hostBinding}
 		}
 	}
 
@@ -525,8 +534,12 @@ func (b *defaultContainerConfigBuilder) buildNetworkConfiguration(networks []v1b
 
 		// Set IP address if specified
 		if networkSpec.IPAddress != nil {
+			ipv4, err := netip.ParseAddr(*networkSpec.IPAddress)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid IPv4 address %q", *networkSpec.IPAddress)
+			}
 			endpointSettings.IPAMConfig = &network.EndpointIPAMConfig{
-				IPv4Address: *networkSpec.IPAddress,
+				IPv4Address: ipv4,
 			}
 		}
 
@@ -535,7 +548,11 @@ func (b *defaultContainerConfigBuilder) buildNetworkConfiguration(networks []v1b
 			if endpointSettings.IPAMConfig == nil {
 				endpointSettings.IPAMConfig = &network.EndpointIPAMConfig{}
 			}
-			endpointSettings.IPAMConfig.IPv6Address = *networkSpec.IPv6Address
+			ipv6, err := netip.ParseAddr(*networkSpec.IPv6Address)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid IPv6 address %q", *networkSpec.IPv6Address)
+			}
+			endpointSettings.IPAMConfig.IPv6Address = ipv6
 		}
 
 		// Set aliases if specified
@@ -754,7 +771,7 @@ func (c *external) updateStatus(cr *v1beta1.Container, containerInfo *container.
 
 	// Container state
 	observation.State = v1beta1.ContainerState{
-		Status:     containerInfo.State.Status,
+		Status:     string(containerInfo.State.Status),
 		Running:    containerInfo.State.Running,
 		Paused:     containerInfo.State.Paused,
 		Restarting: containerInfo.State.Restarting,
@@ -1048,8 +1065,8 @@ func (c *external) buildObservedPorts(containerInfo *container.InspectResponse) 
 		if len(bindings) == 0 {
 			// Port exposed but not bound to host
 			ports = append(ports, v1beta1.ContainerPort{
-				PrivatePort: int32(port.Int()),
-				Type:        port.Proto(),
+				PrivatePort: int32(port.Num()),
+				Type:        string(port.Proto()),
 			})
 			continue
 		}
@@ -1057,9 +1074,9 @@ func (c *external) buildObservedPorts(containerInfo *container.InspectResponse) 
 		// Port bound to host
 		for _, binding := range bindings {
 			containerPort := v1beta1.ContainerPort{
-				PrivatePort: int32(port.Int()),
-				Type:        port.Proto(),
-				IP:          binding.HostIP,
+				PrivatePort: int32(port.Num()),
+				Type:        string(port.Proto()),
+				IP:          clients.AddrString(binding.HostIP),
 			}
 
 			if binding.HostPort != "" {
@@ -1087,13 +1104,13 @@ func (c *external) buildObservedNetworks(containerInfo *container.InspectRespons
 		networkInfo := v1beta1.NetworkInfo{
 			NetworkID:           networkSettings.NetworkID,
 			EndpointID:          networkSettings.EndpointID,
-			Gateway:             networkSettings.Gateway,
-			IPAddress:           networkSettings.IPAddress,
+			Gateway:             clients.AddrString(networkSettings.Gateway),
+			IPAddress:           clients.AddrString(networkSettings.IPAddress),
 			IPPrefixLen:         int32(networkSettings.IPPrefixLen),
-			IPv6Gateway:         networkSettings.IPv6Gateway,
-			GlobalIPv6Address:   networkSettings.GlobalIPv6Address,
+			IPv6Gateway:         clients.AddrString(networkSettings.IPv6Gateway),
+			GlobalIPv6Address:   clients.AddrString(networkSettings.GlobalIPv6Address),
 			GlobalIPv6PrefixLen: int32(networkSettings.GlobalIPv6PrefixLen),
-			MacAddress:          networkSettings.MacAddress,
+			MacAddress:          networkSettings.MacAddress.String(),
 		}
 		networks[networkName] = networkInfo
 	}
@@ -1108,7 +1125,7 @@ func (c *external) buildObservedHealth(health *container.Health) *v1beta1.Contai
 	}
 
 	containerHealth := &v1beta1.ContainerHealth{
-		Status:        health.Status,
+		Status:        string(health.Status),
 		FailingStreak: health.FailingStreak,
 	}
 

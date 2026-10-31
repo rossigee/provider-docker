@@ -17,14 +17,14 @@ limitations under the License.
 package container
 
 import (
+	"net/netip"
 	"sort"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/go-connections/nat"
 	"github.com/google/go-cmp/cmp"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
 	"github.com/pkg/errors"
 	"github.com/rossigee/provider-docker/apis/container/v1beta1"
 	"github.com/rossigee/provider-docker/internal/clients"
@@ -50,16 +50,15 @@ func TestUpdateStatus(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ContainerJSONBase: &container.ContainerJSONBase{
-					ID:   "abc123",
-					Name: "/test-container",
-					State: &container.State{
-						Status:    "running",
-						StartedAt: "2023-01-01T10:00:00Z",
-						Running:   true,
-						Pid:       1234,
-						ExitCode:  0,
-					},
+
+				ID:   "abc123",
+				Name: "/test-container",
+				State: &container.State{
+					Status:    "running",
+					StartedAt: "2023-01-01T10:00:00Z",
+					Running:   true,
+					Pid:       1234,
+					ExitCode:  0,
 				},
 				Config: &container.Config{
 					Image: "nginx:latest",
@@ -67,7 +66,7 @@ func TestUpdateStatus(t *testing.T) {
 				NetworkSettings: &container.NetworkSettings{
 					Networks: map[string]*network.EndpointSettings{
 						"bridge": {
-							IPAddress: "172.17.0.2",
+							IPAddress: netip.MustParseAddr("172.17.0.2"),
 						},
 					},
 				},
@@ -89,18 +88,17 @@ func TestUpdateStatus(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ContainerJSONBase: &container.ContainerJSONBase{
-					ID:   "def456",
-					Name: "/test-container",
-					State: &container.State{
-						Status:     "exited",
-						StartedAt:  "2023-01-01T10:00:00Z",
-						FinishedAt: "2023-01-01T10:05:00Z",
-						Running:    false,
-						Pid:        0,
-						ExitCode:   1,
-						Error:      "Process exited with code 1",
-					},
+
+				ID:   "def456",
+				Name: "/test-container",
+				State: &container.State{
+					Status:     "exited",
+					StartedAt:  "2023-01-01T10:00:00Z",
+					FinishedAt: "2023-01-01T10:05:00Z",
+					Running:    false,
+					Pid:        0,
+					ExitCode:   1,
+					Error:      "Process exited with code 1",
 				},
 				Config: &container.Config{
 					Image: "nginx:latest",
@@ -127,22 +125,21 @@ func TestUpdateStatus(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ContainerJSONBase: &container.ContainerJSONBase{
-					ID:   "ghi789",
-					Name: "/test-container",
-					State: &container.State{
-						Status:  "running",
-						Running: true,
-						Health: &container.Health{
-							Status:        "healthy",
-							FailingStreak: 0,
-							Log: []*container.HealthcheckResult{
-								{
-									Start:    time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
-									End:      time.Date(2023, 1, 1, 10, 0, 1, 0, time.UTC),
-									ExitCode: 0,
-									Output:   "OK",
-								},
+
+				ID:   "ghi789",
+				Name: "/test-container",
+				State: &container.State{
+					Status:  "running",
+					Running: true,
+					Health: &container.Health{
+						Status:        "healthy",
+						FailingStreak: 0,
+						Log: []*container.HealthcheckResult{
+							{
+								Start:    time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC),
+								End:      time.Date(2023, 1, 1, 10, 0, 1, 0, time.UTC),
+								ExitCode: 0,
+								Output:   "OK",
 							},
 						},
 					},
@@ -195,9 +192,8 @@ func TestIsUpToDate(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ContainerJSONBase: &container.ContainerJSONBase{
-					ID: "abc123",
-				},
+
+				ID: "abc123",
 				Config: &container.Config{
 					Image: "nginx:latest",
 					Env:   []string{"TEST_VAR=test_value"},
@@ -219,9 +215,8 @@ func TestIsUpToDate(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ContainerJSONBase: &container.ContainerJSONBase{
-					ID: "abc123",
-				},
+
+				ID: "abc123",
 				Config: &container.Config{
 					Image: "nginx:1.20",
 				},
@@ -242,9 +237,8 @@ func TestIsUpToDate(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ContainerJSONBase: &container.ContainerJSONBase{
-					ID: "abc123",
-				},
+
+				ID: "abc123",
 				Config: &container.Config{
 					Image: "nginx:latest",
 					Env:   []string{"TEST_VAR=old_value"},
@@ -267,9 +261,8 @@ func TestIsUpToDate(t *testing.T) {
 				},
 			},
 			containerInfo: &container.InspectResponse{
-				ContainerJSONBase: &container.ContainerJSONBase{
-					ID: "abc123",
-				},
+
+				ID: "abc123",
 				Config: &container.Config{
 					Image: "nginx:latest",
 					Labels: map[string]string{
@@ -480,11 +473,10 @@ func TestBuildObservedPorts(t *testing.T) {
 			name: "SinglePort",
 			containerInfo: &container.InspectResponse{
 				NetworkSettings: &container.NetworkSettings{
-					NetworkSettingsBase: container.NetworkSettingsBase{ //nolint:staticcheck // Ports field will move to NetworkSettings in v29.0
-						Ports: nat.PortMap{
-							"80/tcp": []nat.PortBinding{
-								{HostIP: "0.0.0.0", HostPort: "8080"},
-							},
+					//nolint:staticcheck // Ports field will move to NetworkSettings in v29.0
+					Ports: network.PortMap{
+						network.MustParsePort("80/tcp"): []network.PortBinding{
+							{HostIP: netip.MustParseAddr("0.0.0.0"), HostPort: "8080"},
 						},
 					},
 				},
@@ -502,17 +494,16 @@ func TestBuildObservedPorts(t *testing.T) {
 			name: "MultiplePorts",
 			containerInfo: &container.InspectResponse{
 				NetworkSettings: &container.NetworkSettings{
-					NetworkSettingsBase: container.NetworkSettingsBase{ //nolint:staticcheck // Ports field will move to NetworkSettings in v29.0
-						Ports: nat.PortMap{
-							"80/tcp": []nat.PortBinding{
-								{HostIP: "0.0.0.0", HostPort: "8080"},
-							},
-							"443/tcp": []nat.PortBinding{
-								{HostIP: "127.0.0.1", HostPort: "8443"},
-							},
-							"53/udp": []nat.PortBinding{
-								{HostIP: "0.0.0.0", HostPort: "5353"},
-							},
+					//nolint:staticcheck // Ports field will move to NetworkSettings in v29.0
+					Ports: network.PortMap{
+						network.MustParsePort("80/tcp"): []network.PortBinding{
+							{HostIP: netip.MustParseAddr("0.0.0.0"), HostPort: "8080"},
+						},
+						network.MustParsePort("443/tcp"): []network.PortBinding{
+							{HostIP: netip.MustParseAddr("127.0.0.1"), HostPort: "8443"},
+						},
+						network.MustParsePort("53/udp"): []network.PortBinding{
+							{HostIP: netip.MustParseAddr("0.0.0.0"), HostPort: "5353"},
 						},
 					},
 				},
@@ -527,12 +518,11 @@ func TestBuildObservedPorts(t *testing.T) {
 			name: "MultipleBindingsPerPort",
 			containerInfo: &container.InspectResponse{
 				NetworkSettings: &container.NetworkSettings{
-					NetworkSettingsBase: container.NetworkSettingsBase{ //nolint:staticcheck // Ports field will move to NetworkSettings in v29.0
-						Ports: nat.PortMap{
-							"80/tcp": []nat.PortBinding{
-								{HostIP: "0.0.0.0", HostPort: "8080"},
-								{HostIP: "127.0.0.1", HostPort: "8081"},
-							},
+					//nolint:staticcheck // Ports field will move to NetworkSettings in v29.0
+					Ports: network.PortMap{
+						network.MustParsePort("80/tcp"): []network.PortBinding{
+							{HostIP: netip.MustParseAddr("0.0.0.0"), HostPort: "8080"},
+							{HostIP: netip.MustParseAddr("127.0.0.1"), HostPort: "8081"},
 						},
 					},
 				},
@@ -594,8 +584,8 @@ func TestBuildObservedNetworks(t *testing.T) {
 				NetworkSettings: &container.NetworkSettings{
 					Networks: map[string]*network.EndpointSettings{
 						"bridge": {
-							IPAddress: "172.17.0.2",
-							Gateway:   "172.17.0.1",
+							IPAddress: netip.MustParseAddr("172.17.0.2"),
+							Gateway:   netip.MustParseAddr("172.17.0.1"),
 						},
 					},
 				},
@@ -613,12 +603,12 @@ func TestBuildObservedNetworks(t *testing.T) {
 				NetworkSettings: &container.NetworkSettings{
 					Networks: map[string]*network.EndpointSettings{
 						"bridge": {
-							IPAddress: "172.17.0.2",
-							Gateway:   "172.17.0.1",
+							IPAddress: netip.MustParseAddr("172.17.0.2"),
+							Gateway:   netip.MustParseAddr("172.17.0.1"),
 						},
 						"custom": {
-							IPAddress: "192.168.1.10",
-							Gateway:   "192.168.1.1",
+							IPAddress: netip.MustParseAddr("192.168.1.10"),
+							Gateway:   netip.MustParseAddr("192.168.1.1"),
 						},
 					},
 				},
