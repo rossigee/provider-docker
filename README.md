@@ -231,7 +231,7 @@ This provider is designed to replace complex Terraform-based Docker compositions
 ### Before (Terraform-based)
 ```yaml
 # Complex composition with multiple providers
-apiVersion: docker.golder.io/v1alpha1  
+apiVersion: docker.example.com/v1alpha1  
 kind: DockerService
 metadata:
   name: my-service
