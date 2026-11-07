@@ -688,7 +688,7 @@ type HealthCheckResult struct {
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:printcolumn:name="IMAGE",type="string",JSONPath=".spec.forProvider.image",priority=1
 // +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".status.atProvider.state.status",priority=1
-// +kubebuilder:resource:scope=Namespaced,categories={crossplane,managed,docker}
+// +kubebuilder:resource:scope=Namespaced,categories={crossplane,managed,docker,v2}
 type Container struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

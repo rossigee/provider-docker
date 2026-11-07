@@ -108,7 +108,7 @@ func (p *Parser) ParseCompose(ctx context.Context, composeContent string) (*Pars
 	}
 
 	// Parse the compose content
-	project, err := cli.ProjectFromOptions(ctx, options)
+	project, err := options.LoadProject(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse compose content")
 	}

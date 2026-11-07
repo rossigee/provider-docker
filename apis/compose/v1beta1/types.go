@@ -354,7 +354,7 @@ type HealthCheckResult struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Namespaced,categories={crossplane,managed,docker}
+// +kubebuilder:resource:scope=Namespaced,categories={crossplane,managed,docker,compose,v2}
 // +kubebuilder:printcolumn:name="PROJECT",type="string",JSONPath=".status.atProvider.projectName"
 // +kubebuilder:printcolumn:name="SERVICES",type="integer",JSONPath=".status.atProvider.services.length"
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
