@@ -10,7 +10,7 @@ PLATFORMS ?= linux_amd64 linux_arm64
 
 # Setup Go with Go 1.27.2 and golangci-lint v2.14.0
 GO_REQUIRED_VERSION ?= 1.27.3
-GOLANGCILINT_VERSION ?= 2.14.0
+GOLANGCILINT_VERSION ?= 2.15.0
 NPROCS ?= 1
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/provider
